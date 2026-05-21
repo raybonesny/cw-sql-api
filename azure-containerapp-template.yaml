@@ -1,0 +1,38 @@
+apiVersion: 2023-06-01
+kind: ContainerApp
+properties:
+  configuration:
+    ingress:
+      external: true
+      targetPort: 8000
+      transport: auto
+    registries: []
+    secrets:
+      - name: api-token
+      - name: sql-server-password
+    vnetConfiguration:
+      infrastructureSubnetId: <YOUR_VNET_SUBNET_RESOURCE_ID>
+    activeRevisionsMode: Single
+  template:
+    containers:
+      - name: secure-sql-api
+        image: <YOUR_ACR_NAME>.azurecr.io/secure-sql-api:latest
+        env:
+          - name: API_TOKEN
+            secretRef: api-token
+          - name: SQL_SERVER_HOST
+            value: <sql-server-host>
+          - name: SQL_SERVER_DATABASE
+            value: <sql-server-database>
+          - name: SQL_SERVER_USER
+            value: <sql-server-user>
+          - name: SQL_SERVER_PASSWORD
+            secretRef: sql-server-password
+          - name: QUERY_ROW_LIMIT
+            value: "500"
+          - name: DB_QUERY_TIMEOUT_SECONDS
+            value: "15"
+          - name: MAX_EXECUTION_TIME_SECONDS
+            value: "10"
+          - name: ALLOWED_TABLES_JSON
+            value: '{"Company":["id","companyName","status","city","province"],"Contact":["id","firstName","lastName","email","phone"],"Opportunity":["id","opportunityName","stage","status","estimatedCloseDate"]}'
