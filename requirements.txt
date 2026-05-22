@@ -1,5 +1,6 @@
-fastapi==0.111.2
-uvicorn[standard]==0.23.2
-sqlalchemy==2.0.36
-pyodbc==4.0.40
-pydantic==2.9.0
+fastapi
+uvicorn[standard]
+sqlalchemy
+pyodbc
+pydantic
+python-dotenv
