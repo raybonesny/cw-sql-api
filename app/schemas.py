@@ -1,16 +1,27 @@
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any, Literal
+from pydantic import BaseModel
 
 
 class FilterCondition(BaseModel):
     field: str
-    operator: str
+    operator: Literal[
+        "eq",
+        "ne",
+        "lt",
+        "lte",
+        "gt",
+        "gte",
+        "in",
+        "contains",
+        "startswith",
+        "endswith",
+    ]
     value: Any
 
 
 class OrderBy(BaseModel):
     field: str
-    direction: str = Field("asc", pattern="^(asc|desc)$")
+    direction: Literal["asc", "desc"] = "asc"
 
 
 class QueryRequest(BaseModel):
