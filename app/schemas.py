@@ -29,6 +29,7 @@ class QueryRequest(BaseModel):
     columns: Optional[List[str]] = None
     filters: Optional[List[FilterCondition]] = None
     order_by: Optional[List[OrderBy]] = None
+    expand: Optional[List[str]] = None   # ✅ THIS IS WHAT YOU WERE MISSING
     limit: Optional[int] = None
 
 
