@@ -9,22 +9,7 @@ from app.config import get_allowed_tables, get_row_limit, settings
 from app.schemas import QueryRequest
 
 
-ALLOWED_EXPANDS = {
-    "SR_Service": {
-        "Company": {
-            "table": "Company",
-            "base_alias": "s",
-            "join_alias": "c",
-            "left_key": "Company_RecID",
-            "right_key": "Company_RecID",
-            "default_columns": [
-                "Company_RecID",
-                "Company_ID",
-                "Company_Name",
-            ],
-        }
-    }
-}
+from app.relationships import ALLOWED_EXPANDS
 
 
 def get_connection_string() -> str:
