@@ -9,6 +9,24 @@ from app.config import get_allowed_tables, get_row_limit, settings
 from app.schemas import QueryRequest
 
 
+ALLOWED_EXPANDS = {
+    "SR_Service": {
+        "Company": {
+            "table": "Company",
+            "base_alias": "s",
+            "join_alias": "c",
+            "left_key": "Company_RecID",
+            "right_key": "Company_RecID",
+            "default_columns": [
+                "Company_RecID",
+                "Company_ID",
+                "Company_Name",
+            ],
+        }
+    }
+}
+
+
 def get_connection_string() -> str:
     """
     Build a SQLAlchemy connection string for SQL Server via pyodbc.
@@ -67,6 +85,7 @@ def build_where_clause(
     filters: List[Any],
     allowed_columns: List[str],
     params: Dict[str, Any],
+    table_alias: str = "s",
 ) -> Tuple[str, Dict[str, Any]]:
     """
     Build a parameterized WHERE clause from structured filters.
@@ -84,7 +103,7 @@ def build_where_clause(
         if field not in allowed_columns:
             raise ValueError(f"Filter field '{field}' is not allowed")
 
-        col = f"[{field}]"
+        col = f"{table_alias}.[{field}]"
 
         # Unique parameter base name
         pname = f"p{param_index}"
@@ -138,7 +157,6 @@ def build_where_clause(
             if len(value) == 0:
                 raise ValueError(f"Operator 'in' requires a non-empty list for field '{field}'")
 
-            # Expand list into (:pN_0, :pN_1, ...)
             in_placeholders: List[str] = []
             for i, item in enumerate(value):
                 in_name = f"{pname}_{i}"
@@ -156,48 +174,116 @@ def build_where_clause(
     return "WHERE " + " AND ".join(clauses), params
 
 
+def build_expand_clauses(
+    base_table: str,
+    expands: List[str],
+    allowed_tables: Dict[str, List[str]],
+) -> Tuple[str, List[str]]:
+    """
+    Builds safe JOIN clauses and expanded SELECT expressions for allowed relationships.
+    """
+    if not expands:
+        return "", []
+
+    join_clauses: List[str] = []
+    expanded_selects: List[str] = []
+
+    for expand in expands:
+        if expand not in ALLOWED_EXPANDS.get(base_table, {}):
+            raise ValueError(f"Expand '{expand}' is not allowed for table '{base_table}'")
+
+        cfg = ALLOWED_EXPANDS[base_table][expand]
+
+        target_table = cfg["table"]
+        join_alias = cfg["join_alias"]
+        base_alias = cfg["base_alias"]
+        left_key = cfg["left_key"]
+        right_key = cfg["right_key"]
+        default_columns = cfg["default_columns"]
+
+        # Make sure expanded table is also in allowlist
+        if target_table not in allowed_tables:
+            raise ValueError(f"Expanded table '{target_table}' is not allowed")
+
+        target_allowed_columns = allowed_tables[target_table]
+
+        for col in default_columns:
+            if col not in target_allowed_columns:
+                raise ValueError(
+                    f"Expanded column '{col}' is not allowed for table '{target_table}'"
+                )
+
+            expanded_selects.append(
+                f"{join_alias}.[{col}] AS [{expand}_{col}]"
+            )
+
+        join_clauses.append(
+            f"LEFT JOIN [{target_table}] {join_alias} "
+            f"ON {base_alias}.[{left_key}] = {join_alias}.[{right_key}]"
+        )
+
+    return " ".join(join_clauses), expanded_selects
+
+
 def build_select_query(request: QueryRequest) -> Tuple[str, Dict[str, Any]]:
     """
     Converts a QueryRequest into a safe parameterized SQL query with:
       - SELECT TOP (:limit) ...
       - optional WHERE (filters)
       - optional ORDER BY
+      - optional controlled expands
     """
     allowed_tables = get_allowed_tables()
 
-    # 1. Validate table
-    table = request.table
-    if table not in allowed_tables:
-        raise ValueError(f"Table '{table}' is not allowed")
+    base_table = request.table
+    base_alias = "s"
 
-    allowed_columns = allowed_tables[table]
+    # 1. Validate table
+    if base_table not in allowed_tables:
+        raise ValueError(f"Table '{base_table}' is not allowed")
+
+    allowed_columns = allowed_tables[base_table]
 
     # 2. Validate columns
     columns = request.columns or allowed_columns
     for col in columns:
         if col not in allowed_columns:
-            raise ValueError(f"Column '{col}' is not allowed in table '{table}'")
+            raise ValueError(f"Column '{col}' is not allowed in table '{base_table}'")
 
-    # 3. Apply LIMIT (safe enforcement)
+    # 3. Apply LIMIT
     limit = get_row_limit(request.limit or 0)
 
-    # 4. Build SELECT clause safely
-    column_list = ", ".join(f"[{col}]" for col in columns)
-    select_clause = f"SELECT TOP (:limit) {column_list} FROM [{table}]"
+    # 4. Expanded JOINs + expanded SELECT columns
+    join_clause = ""
+    expanded_selects: List[str] = []
+    if request.expand:
+        join_clause, expanded_selects = build_expand_clauses(
+            base_table=base_table,
+            expands=request.expand,
+            allowed_tables=allowed_tables,
+        )
 
-    # 5. Prepare parameters
+    # 5. Build SELECT list
+    base_selects = [f"{base_alias}.[{col}] AS [{col}]" for col in columns]
+    all_selects = base_selects + expanded_selects
+    column_list = ", ".join(all_selects)
+
+    select_clause = f"SELECT TOP (:limit) {column_list} FROM [{base_table}] {base_alias}"
+
+    # 6. Params
     params: Dict[str, Any] = {"limit": limit}
 
-    # 6. WHERE clause (filters)
+    # 7. WHERE
     where_clause = ""
     if request.filters:
         where_clause, params = build_where_clause(
             filters=request.filters,
             allowed_columns=allowed_columns,
             params=params,
+            table_alias=base_alias,
         )
 
-    # 7. ORDER BY clause (safe)
+    # 8. ORDER BY
     order_clause = ""
     if request.order_by:
         order_parts: List[str] = []
@@ -211,10 +297,10 @@ def build_select_query(request: QueryRequest) -> Tuple[str, Dict[str, Any]]:
             if direction not in ("asc", "desc"):
                 raise ValueError(f"Invalid order direction '{direction}' for field '{field}'")
 
-            order_parts.append(f"[{field}] {direction.upper()}")
+            order_parts.append(f"{base_alias}.[{field}] {direction.upper()}")
 
         if order_parts:
             order_clause = "ORDER BY " + ", ".join(order_parts)
 
-    sql = f"{select_clause} {where_clause} {order_clause}".strip()
+    sql = f"{select_clause} {join_clause} {where_clause} {order_clause}".strip()
     return sql, params
