@@ -1,12 +1,13 @@
 import logging
-from typing import Any
+from typing import Any, List
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 
 from app.auth import verify_token
 from app.config import validate_environment
 from app.database import build_select_query, execute_select
-from app.schemas import QueryRequest, QueryResponse
+from app.schemas import QueryRequest, QueryResponse, FilterCondition
+from app.semantic_maps import SEMANTIC_STATUS_FIELDS, resolve_status_filter
 
 app = FastAPI(title="CW Secure SQL API", version="0.1.0")
 
@@ -35,9 +36,47 @@ def on_startup() -> None:
         validate_environment()
         logger.info("Startup validation succeeded.")
     except Exception as e:
-        # Fail fast - container should not start if env is invalid
         logger.error(f"Startup validation failed: {e}")
         raise
+
+
+def apply_semantic_filters(request_body: QueryRequest) -> QueryRequest:
+    """
+    Converts generic semantic filters into concrete expanded-table filters.
+
+    IMPORTANT:
+    - Only remaps GENERIC fields like "status" / "ticket_status"
+    - Does NOT override explicit fields like "SR_Status.Description"
+    - Automatically adds the required expand when needed
+    """
+    if not request_body.filters:
+        return request_body
+
+    new_filters: List[FilterCondition] = []
+    expands = list(request_body.expand or [])
+
+    for f in request_body.filters:
+        field_lower = f.field.lower()
+
+        # Semantic status mapping only for generic aliases
+        if field_lower in SEMANTIC_STATUS_FIELDS:
+            resolved = resolve_status_filter(str(f.value))
+            new_filters.append(FilterCondition(**resolved))
+
+            if "SR_Status" not in expands:
+                expands.append("SR_Status")
+
+            continue
+
+        # Leave all explicit fields untouched
+        new_filters.append(f)
+
+    return request_body.model_copy(
+        update={
+            "filters": new_filters,
+            "expand": expands,
+        }
+    )
 
 
 # -----------------------
@@ -70,6 +109,9 @@ def query_api(
         client_ip = None
 
     try:
+        # Apply semantic translation BEFORE SQL compilation
+        request_body = apply_semantic_filters(request_body)
+
         # Compile structured request -> SQL + params
         sql, params = build_select_query(request_body)
 
@@ -78,12 +120,13 @@ def query_api(
 
         # Audit log (DO NOT log SQL params/values)
         logger.info(
-            "query_executed client_ip=%s table=%s columns_requested=%s row_count=%s execution_time_ms=%s",
+            "query_executed client_ip=%s table=%s columns_requested=%s row_count=%s execution_time_ms=%s expands=%s",
             client_ip,
             request_body.table,
             len(request_body.columns) if request_body.columns else "ALL_ALLOWED",
             len(rows),
             execution_time_ms,
+            request_body.expand,
         )
 
         return QueryResponse(
@@ -94,7 +137,6 @@ def query_api(
         )
 
     except ValueError as ve:
-        # Validation errors: allowlist violations, unsupported operators, etc.
         logger.warning(
             "query_rejected client_ip=%s table=%s reason=%s",
             client_ip,
@@ -107,7 +149,6 @@ def query_api(
         )
 
     except RuntimeError as re:
-        # Database failure (sanitized)
         logger.error(
             "query_failed client_ip=%s table=%s error=%s",
             client_ip,
@@ -120,7 +161,6 @@ def query_api(
         )
 
     except Exception as e:
-        # Catch-all (sanitized)
         logger.error(
             "unexpected_error client_ip=%s table=%s error=%s",
             client_ip,

@@ -20,8 +20,10 @@ ALLOWED_EXPANDS = {
             "right_key": "SR_Status_RecID",
             "default_columns": [
                 "SR_Status_RecID",
-                "SR_Status"
+                "Description",
+                "SR_Board_RecID",
+                "Inactive_Flag",
             ],
-        }
+        },
     }
 }
