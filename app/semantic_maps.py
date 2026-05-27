@@ -154,34 +154,30 @@ SEMANTIC_STATUS_FIELDS: Set[str] = {
 }
 
 
-def resolve_status_filter(value: str) -> dict:
-    """
-    Resolve a user-friendly status term into a structured expanded-table filter.
 
-    Rules:
-      1. If value is an exact known real status -> exact match
-      2. Else if value is a semantic bucket -> IN clause
-      3. Else -> contains match (graceful fallback)
-    """
+def resolve_status_filter(value: str) -> dict:
     raw_value = str(value).strip()
     normalized = raw_value.lower()
 
+    # ✅ Case 1: exact real status
     if normalized in ACTUAL_STATUS_CANONICAL:
         return {
-            "field": "SR_Status.SR_Status",
+            "field": "SR_Status.Description",
             "operator": "eq",
             "value": ACTUAL_STATUS_CANONICAL[normalized],
         }
 
+    # ✅ Case 2: semantic group
     if normalized in STATUS_MAP:
         return {
-            "field": "SR_Status.SR_Status",
+            "field": "SR_Status.Description",
             "operator": "in",
             "value": STATUS_MAP[normalized],
         }
 
+    # ✅ Case 3: fallback
     return {
-        "field": "SR_Status.SR_Status",
+        "field": "SR_Status.Description",
         "operator": "contains",
         "value": raw_value,
     }
