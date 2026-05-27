@@ -6,10 +6,8 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import get_allowed_tables, get_row_limit, settings
-from app.schemas import QueryRequest
-
-
 from app.relationships import ALLOWED_EXPANDS
+from app.schemas import QueryRequest
 
 
 def get_connection_string() -> str:
@@ -66,29 +64,110 @@ def execute_select(sql: str, params: Dict[str, Any]) -> Tuple[List[str], List[Di
         raise RuntimeError("Database query failed") from e
 
 
+def build_expand_clauses(
+    base_table: str,
+    expands: List[str],
+    allowed_tables: Dict[str, List[str]],
+) -> Tuple[str, List[str], Dict[str, Tuple[str, str, str]]]:
+    """
+    Builds safe JOIN clauses and expanded SELECT expressions for allowed relationships.
+
+    Returns:
+      join_clause: SQL LEFT JOIN text
+      expanded_selects: list of SELECT expressions for expanded columns
+      expanded_field_map: maps filterable expanded fields like:
+          "Company.Company_Name" -> ("c", "Company", "Company_Name")
+    """
+    if not expands:
+        return "", [], {}
+
+    join_clauses: List[str] = []
+    expanded_selects: List[str] = []
+    expanded_field_map: Dict[str, Tuple[str, str, str]] = {}
+
+    for expand in expands:
+        if expand not in ALLOWED_EXPANDS.get(base_table, {}):
+            raise ValueError(f"Expand '{expand}' is not allowed for table '{base_table}'")
+
+        cfg = ALLOWED_EXPANDS[base_table][expand]
+
+        target_table = cfg["table"]
+        join_alias = cfg["join_alias"]
+        base_alias = cfg["base_alias"]
+        left_key = cfg["left_key"]
+        right_key = cfg["right_key"]
+        default_columns = cfg["default_columns"]
+
+        # Expanded table itself must be allowed
+        if target_table not in allowed_tables:
+            raise ValueError(f"Expanded table '{target_table}' is not allowed")
+
+        target_allowed_columns = allowed_tables[target_table]
+
+        # ✅ Register ALL allowed columns for filtering
+        for col in target_allowed_columns:
+            expanded_field_map[f"{expand}.{col}"] = (join_alias, target_table, col)
+
+        # ✅ Only add default columns to SELECT output
+        for col in default_columns:
+            if col not in target_allowed_columns:
+                raise ValueError(
+                    f"Expanded column '{col}' is not allowed for table '{target_table}'"
+                )
+
+            expanded_selects.append(
+                f"{join_alias}.[{col}] AS [{expand}_{col}]"
+            )
+
+        join_clauses.append(
+            f"LEFT JOIN [{target_table}] {join_alias} "
+            f"ON {base_alias}.[{left_key}] = {join_alias}.[{right_key}]"
+        )
+
+    return " ".join(join_clauses), expanded_selects, expanded_field_map
+
+
 def build_where_clause(
     filters: List[Any],
     allowed_columns: List[str],
     params: Dict[str, Any],
     table_alias: str = "s",
+    expanded_field_map: Dict[str, Tuple[str, str, str]] | None = None,
 ) -> Tuple[str, Dict[str, Any]]:
     """
     Build a parameterized WHERE clause from structured filters.
-    Supported operators: eq, ne, lt, lte, gt, gte, in, contains, startswith, endswith
+
+    Supported operators:
+      eq, ne, lt, lte, gt, gte, in, contains, startswith, endswith
+
+    Supports:
+      - base table fields, e.g. "Company_RecID"
+      - expanded table fields via dot notation, e.g. "Company.Company_Name"
     """
     clauses: List[str] = []
     param_index = len(params)  # start after existing params (e.g., limit)
+    expanded_field_map = expanded_field_map or {}
 
     for f in filters:
         field = f.field
         op = f.operator
         value = f.value
 
-        # Validate field against allowlist
-        if field not in allowed_columns:
-            raise ValueError(f"Filter field '{field}' is not allowed")
+        # Resolve field target
+        if "." in field:
+            # Expanded-table filter, e.g. Company.Company_Name
+            if field not in expanded_field_map:
+                raise ValueError(f"Filter field '{field}' is not allowed")
 
-        col = f"{table_alias}.[{field}]"
+            alias, _, column_name = expanded_field_map[field]
+            col = f"{alias}.[{column_name}]"
+
+        else:
+            # Base-table filter
+            if field not in allowed_columns:
+                raise ValueError(f"Filter field '{field}' is not allowed")
+
+            col = f"{table_alias}.[{field}]"
 
         # Unique parameter base name
         pname = f"p{param_index}"
@@ -159,57 +238,6 @@ def build_where_clause(
     return "WHERE " + " AND ".join(clauses), params
 
 
-def build_expand_clauses(
-    base_table: str,
-    expands: List[str],
-    allowed_tables: Dict[str, List[str]],
-) -> Tuple[str, List[str]]:
-    """
-    Builds safe JOIN clauses and expanded SELECT expressions for allowed relationships.
-    """
-    if not expands:
-        return "", []
-
-    join_clauses: List[str] = []
-    expanded_selects: List[str] = []
-
-    for expand in expands:
-        if expand not in ALLOWED_EXPANDS.get(base_table, {}):
-            raise ValueError(f"Expand '{expand}' is not allowed for table '{base_table}'")
-
-        cfg = ALLOWED_EXPANDS[base_table][expand]
-
-        target_table = cfg["table"]
-        join_alias = cfg["join_alias"]
-        base_alias = cfg["base_alias"]
-        left_key = cfg["left_key"]
-        right_key = cfg["right_key"]
-        default_columns = cfg["default_columns"]
-
-        # Make sure expanded table is also in allowlist
-        if target_table not in allowed_tables:
-            raise ValueError(f"Expanded table '{target_table}' is not allowed")
-
-        target_allowed_columns = allowed_tables[target_table]
-
-        for col in default_columns:
-            if col not in target_allowed_columns:
-                raise ValueError(
-                    f"Expanded column '{col}' is not allowed for table '{target_table}'"
-                )
-
-            expanded_selects.append(
-                f"{join_alias}.[{col}] AS [{expand}_{col}]"
-            )
-
-        join_clauses.append(
-            f"LEFT JOIN [{target_table}] {join_alias} "
-            f"ON {base_alias}.[{left_key}] = {join_alias}.[{right_key}]"
-        )
-
-    return " ".join(join_clauses), expanded_selects
-
-
 def build_select_query(request: QueryRequest) -> Tuple[str, Dict[str, Any]]:
     """
     Converts a QueryRequest into a safe parameterized SQL query with:
@@ -238,11 +266,13 @@ def build_select_query(request: QueryRequest) -> Tuple[str, Dict[str, Any]]:
     # 3. Apply LIMIT
     limit = get_row_limit(request.limit or 0)
 
-    # 4. Expanded JOINs + expanded SELECT columns
+    # 4. Expanded JOINs + expanded SELECT columns + expanded filter map
     join_clause = ""
     expanded_selects: List[str] = []
+    expanded_field_map: Dict[str, Tuple[str, str, str]] = {}
+
     if request.expand:
-        join_clause, expanded_selects = build_expand_clauses(
+        join_clause, expanded_selects, expanded_field_map = build_expand_clauses(
             base_table=base_table,
             expands=request.expand,
             allowed_tables=allowed_tables,
@@ -266,9 +296,10 @@ def build_select_query(request: QueryRequest) -> Tuple[str, Dict[str, Any]]:
             allowed_columns=allowed_columns,
             params=params,
             table_alias=base_alias,
+            expanded_field_map=expanded_field_map,
         )
 
-    # 8. ORDER BY
+    # 8. ORDER BY (base table only for now)
     order_clause = ""
     if request.order_by:
         order_parts: List[str] = []
