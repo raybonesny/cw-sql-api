@@ -1,8 +1,8 @@
 swagger: "2.0"
 info:
   title: ConnectWise Manage Ticket Search API
-  description: Semantic ticket search, count, and ticket note retrieval for ConnectWise Manage.
-  version: "1.0.0"
+  description: Search, count, and retrieve notes for ConnectWise Manage tickets.
+  version: "1.0.1"
 
 host: cw-manage-sql-api.purpletree-ada7f3eb.northcentralus.azurecontainerapps.io
 basePath: /
@@ -29,51 +29,35 @@ paths:
     get:
       operationId: GetTicketEntityMetadata
       summary: Get supported ticket fields and includes
-      description: Returns the supported semantic fields, includes, and default selected fields for ticket queries.
+      x-ms-summary: Get supported ticket fields and includes
+      description: Returns supported semantic ticket fields, default selected fields, and supported related includes. Use this tool when field discovery is needed.
       security:
         - BearerAuth: []
       responses:
         "200":
-          description: Ticket entity metadata
+          description: Ticket entity metadata.
           schema:
-            type: object
-            properties:
-              entity:
-                type: string
-              base_table:
-                type: string
-              default_select:
-                type: array
-                items:
-                  type: string
-              fields:
-                type: array
-                items:
-                  type: string
-              includes:
-                type: array
-                items:
-                  type: string
+            $ref: "#/definitions/TicketEntityMetadataResponse"
 
   /api/search:
     post:
       operationId: SearchTickets
       summary: Search ConnectWise Manage tickets
-      description: >
-        Searches tickets using semantic field names. Use this for prompts asking to find, show, list,
-        or retrieve tickets. Use field aliases like company, status, board, owner, summary, and last_updated.
-        For multi-word summary searches, prefer contains_all.
+      x-ms-summary: Search ConnectWise Manage tickets
+      description: Searches ConnectWise Manage tickets using semantic field names. Use this for prompts asking to find, show, list, or retrieve tickets.
       security:
         - BearerAuth: []
       parameters:
         - in: body
           name: body
           required: true
+          description: Ticket search request containing entity, filters, selected fields, ordering, and row limit.
+          x-ms-summary: Ticket search request
           schema:
             $ref: "#/definitions/SemanticSearchRequest"
       responses:
         "200":
-          description: Ticket search results
+          description: Matching ticket search results.
           schema:
             $ref: "#/definitions/SemanticSearchResponse"
 
@@ -81,20 +65,21 @@ paths:
     post:
       operationId: CountTickets
       summary: Count ConnectWise Manage tickets
-      description: >
-        Counts tickets matching semantic filters. Use this for questions that ask how many tickets match
-        a condition.
+      x-ms-summary: Count ConnectWise Manage tickets
+      description: Counts ConnectWise Manage tickets matching semantic filters. Use this for questions asking how many tickets match a condition.
       security:
         - BearerAuth: []
       parameters:
         - in: body
           name: body
           required: true
+          description: Ticket count request containing entity and filters.
+          x-ms-summary: Ticket count request
           schema:
             $ref: "#/definitions/SemanticSearchRequest"
       responses:
         "200":
-          description: Ticket count result
+          description: Count of matching tickets.
           schema:
             $ref: "#/definitions/SemanticCountResponse"
 
@@ -102,27 +87,65 @@ paths:
     post:
       operationId: GetTicketNotes
       summary: Get notes for matching tickets
-      description: >
-        Retrieves structured ticket notes for tickets matching semantic ticket filters. Use this when the user
-        asks to summarize, synthesize, review, explain, or inspect notes on tickets. The agent should summarize
-        the returned notes for the user.
+      x-ms-summary: Get notes for matching tickets
+      description: Retrieves structured ticket notes for tickets matching semantic ticket filters. Use this when the user asks to summarize, synthesize, review, explain, or inspect notes on tickets.
       security:
         - BearerAuth: []
       parameters:
         - in: body
           name: body
           required: true
+          description: Ticket notes request containing ticket filters and note limits.
+          x-ms-summary: Ticket notes request
           schema:
             $ref: "#/definitions/TicketNotesRequest"
       responses:
         "200":
-          description: Ticket notes result
+          description: Matching ticket note records.
           schema:
             $ref: "#/definitions/TicketNotesResponse"
 
 definitions:
+  TicketEntityMetadataResponse:
+    type: object
+    description: Metadata describing supported ticket fields and includes.
+    properties:
+      entity:
+        type: string
+        description: The entity name returned by the API. For this tool, this should be ticket.
+        x-ms-summary: Entity name
+      base_table:
+        type: string
+        description: The underlying ConnectWise Manage database table used by the ticket entity.
+        x-ms-summary: Base table
+      default_select:
+        type: array
+        description: Default ticket fields returned when no select list is provided.
+        x-ms-summary: Default selected fields
+        items:
+          type: string
+          description: A default ticket field name.
+          x-ms-summary: Default selected field
+      fields:
+        type: array
+        description: Supported semantic ticket fields that can be used in filters and selected fields.
+        x-ms-summary: Supported ticket fields
+        items:
+          type: string
+          description: A supported semantic ticket field.
+          x-ms-summary: Supported ticket field
+      includes:
+        type: array
+        description: Optional related data joins supported by the ticket entity.
+        x-ms-summary: Supported includes
+        items:
+          type: string
+          description: A supported related include.
+          x-ms-summary: Supported include
+
   SemanticFilterCondition:
     type: object
+    description: A single semantic filter condition for ticket search or ticket count requests.
     required:
       - field
       - operator
@@ -130,10 +153,8 @@ definitions:
     properties:
       field:
         type: string
-        description: >
-          Semantic field name. Common values include summary, company, status, board, owner,
-          date_entered, last_updated, is_closed, type, subtype, item, urgency, impact, severity,
-          source, and team.
+        description: Semantic field name. Common values include summary, company, status, board, owner, date_entered, last_updated, is_closed, type, subtype, item, urgency, impact, severity, source, and team.
+        x-ms-summary: Filter field
       operator:
         type: string
         enum:
@@ -150,10 +171,8 @@ definitions:
           - startswith
           - endswith
           - semantic_eq
-        description: >
-          Use contains for simple text matching. Use contains_all when a user gives several words that
-          should all appear somewhere in the field. Use semantic_eq for lifecycle status terms like open,
-          closed, completed, done, active, inactive, scheduled, waiting_client, and waiting_vendor.
+        description: Use contains for simple text matching. Use contains_all when several words should all appear somewhere in the field. Use contains_any when any one of several words can appear. Use semantic_eq for lifecycle status terms like open, closed, completed, done, active, inactive, scheduled, waiting_client, and waiting_vendor.
+        x-ms-summary: Filter operator
       value:
         type: object
         description: Filter value. For contains_all and contains_any, use an array of strings when possible. For most other operators, use a string, number, boolean, or list as appropriate.
@@ -161,20 +180,26 @@ definitions:
 
   SemanticOrderBy:
     type: object
+    description: Sort instruction for ticket search results.
     required:
       - field
     properties:
       field:
         type: string
+        description: Field to sort by, such as last_updated, date_entered, company, status, board, owner, or summary.
+        x-ms-summary: Sort field
       direction:
         type: string
         enum:
           - asc
           - desc
         default: asc
+        description: Sort direction. Use asc or desc.
+        x-ms-summary: Sort direction
 
   SemanticSearchRequest:
     type: object
+    description: Request body for searching or counting ConnectWise Manage tickets.
     required:
       - entity
     properties:
@@ -182,24 +207,34 @@ definitions:
         type: string
         enum:
           - ticket
-        description: Currently only ticket is supported.
+        description: The entity being searched or counted. Use ticket.
+        x-ms-summary: Entity
       select:
         type: array
+        description: Optional list of ticket fields to return. Omit this to use default ticket fields.
+        x-ms-summary: Selected fields
         items:
           type: string
-        description: Optional list of ticket fields to return. Omit to use default fields.
+          description: Ticket field to return.
+          x-ms-summary: Selected field
       where:
         type: array
+        description: Semantic filters to apply to the ticket query.
+        x-ms-summary: Ticket filters
         items:
           $ref: "#/definitions/SemanticFilterCondition"
-        description: Semantic filters to apply.
       include:
         type: array
+        description: Optional includes. Usually omit because includes are inferred from selected and filtered fields.
+        x-ms-summary: Optional includes
         items:
           type: string
-        description: Optional includes. Usually omit because includes are inferred from selected and filtered fields.
+          description: Optional related include.
+          x-ms-summary: Optional include
       order_by:
         type: array
+        description: Optional sort instructions for ticket search results.
+        x-ms-summary: Sort instructions
         items:
           $ref: "#/definitions/SemanticOrderBy"
       limit:
@@ -207,78 +242,119 @@ definitions:
         format: int32
         minimum: 1
         description: Maximum number of rows to return.
+        x-ms-summary: Row limit
 
   SemanticSearchResponse:
     type: object
+    description: Ticket search response containing matching ticket rows.
     properties:
       entity:
         type: string
+        description: The entity returned by the API. For this tool, this should be ticket.
+        x-ms-summary: Entity
       columns:
         type: array
+        description: Names of the fields returned in each ticket row.
+        x-ms-summary: Result columns
         items:
           type: string
+          description: Returned field name.
+          x-ms-summary: Result column
       rows:
         type: array
+        description: Matching ticket records returned by the API.
+        x-ms-summary: Ticket rows
         items:
           type: object
+          description: A matching ticket record.
+          x-ms-summary: Ticket row
       row_count:
         type: integer
         format: int32
+        description: Number of ticket rows returned.
+        x-ms-summary: Row count
       execution_time_ms:
         type: integer
         format: int32
+        description: Query execution time in milliseconds.
+        x-ms-summary: Execution time milliseconds
 
   SemanticCountResponse:
     type: object
+    description: Ticket count response.
     properties:
       entity:
         type: string
+        description: The entity returned by the API. For this tool, this should be ticket.
+        x-ms-summary: Entity
       count:
         type: integer
         format: int64
+        description: Number of matching tickets.
+        x-ms-summary: Ticket count
       execution_time_ms:
         type: integer
         format: int32
+        description: Query execution time in milliseconds.
+        x-ms-summary: Execution time milliseconds
 
   TicketNotesRequest:
     type: object
+    description: Request body for retrieving notes from matching tickets.
     properties:
       ticket_where:
         type: array
+        description: Filters used to find matching tickets before retrieving notes.
+        x-ms-summary: Ticket filters
         items:
           $ref: "#/definitions/SemanticFilterCondition"
-        description: Filters used to find matching tickets before retrieving notes.
       limit_tickets:
         type: integer
         format: int32
         minimum: 1
         default: 10
         description: Maximum number of matching tickets to collect notes from.
+        x-ms-summary: Ticket limit
       limit_notes:
         type: integer
         format: int32
         minimum: 1
         default: 100
         description: Maximum number of notes to return.
+        x-ms-summary: Note limit
       include_internal:
         type: boolean
         default: true
-        description: Whether to include internal analysis/member notes.
+        description: Whether to include internal analysis and internal member notes.
+        x-ms-summary: Include internal notes
 
   TicketNotesResponse:
     type: object
+    description: Ticket notes response containing structured notes from matching tickets.
     properties:
       columns:
         type: array
+        description: Names of the fields returned in each ticket note row.
+        x-ms-summary: Result columns
         items:
           type: string
+          description: Returned note field name.
+          x-ms-summary: Result column
       rows:
         type: array
+        description: Matching ticket note records returned by the API.
+        x-ms-summary: Ticket note rows
         items:
           type: object
+          description: A matching ticket note record.
+          x-ms-summary: Ticket note row
       row_count:
         type: integer
         format: int32
+        description: Number of note rows returned.
+        x-ms-summary: Row count
       execution_time_ms:
         type: integer
         format: int32
+        description: Query execution time in milliseconds.
+        x-ms-summary: Execution time milliseconds
