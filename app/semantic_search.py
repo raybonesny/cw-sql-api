@@ -292,6 +292,22 @@ def _build_condition_clause(
     if operator == "contains":
         return f"{expression} LIKE :{param_name}", {param_name: f"%{value}%"}
 
+    if operator == "contains_all":
+        return _build_multi_contains_clause(
+            expression=expression,
+            value=value,
+            param_name=param_name,
+            joiner="AND",
+        )
+
+    if operator == "contains_any":
+        return _build_multi_contains_clause(
+            expression=expression,
+            value=value,
+            param_name=param_name,
+            joiner="OR",
+        )
+
     if operator == "startswith":
         return f"{expression} LIKE :{param_name}", {param_name: f"{value}%"}
 
@@ -316,6 +332,37 @@ def _build_condition_clause(
         return _build_semantic_eq_clause(field, value, param_name)
 
     raise SemanticSearchError(f"Unsupported operator '{operator}'.")
+
+
+def _build_multi_contains_clause(
+    expression: str,
+    value: Any,
+    param_name: str,
+    joiner: str,
+) -> Tuple[str, Dict[str, Any]]:
+    if isinstance(value, str):
+        terms = [term for term in value.split() if term]
+    elif isinstance(value, list):
+        terms = [str(term).strip() for term in value if str(term).strip()]
+    else:
+        raise SemanticSearchError(
+            "Operators 'contains_all' and 'contains_any' require a string or non-empty list value."
+        )
+
+    if not terms:
+        raise SemanticSearchError(
+            "Operators 'contains_all' and 'contains_any' require at least one search term."
+        )
+
+    clauses: List[str] = []
+    params: Dict[str, Any] = {}
+
+    for index, term in enumerate(terms):
+        term_param_name = f"{param_name}_{index}"
+        clauses.append(f"{expression} LIKE :{term_param_name}")
+        params[term_param_name] = f"%{term}%"
+
+    return "(" + f" {joiner} ".join(clauses) + ")", params
 
 
 def _build_semantic_eq_clause(
