@@ -13,6 +13,23 @@ class SemanticSearchError(ValueError):
     pass
 
 
+FIELD_ALIASES = {
+    "status": "status.name",
+    "company": "company.name",
+    "board": "board.name",
+    "owner": "owner.name",
+    "contact": "contact.name",
+    "type": "type.name",
+    "subtype": "subtype.name",
+    "item": "item.name",
+    "urgency": "urgency.name",
+    "impact": "impact.name",
+    "severity": "severity.name",
+    "source": "source.name",
+    "team": "team.name",
+}
+
+
 def execute_semantic_search(request: SemanticSearchRequest) -> SemanticSearchResponse:
     start_time = time.perf_counter()
 
@@ -153,12 +170,20 @@ def _build_joins(entity: EntityMapping, include_names: Set[str]) -> str:
 
 
 def _get_field(entity: EntityMapping, field_name: str) -> FieldMapping:
-    field = entity.fields.get(field_name)
+    normalized_field_name = _normalize_field_name(field_name)
+
+    field = entity.fields.get(normalized_field_name)
     if field is None:
         raise SemanticSearchError(
             f"Unsupported field '{field_name}' for entity '{entity.name}'."
         )
+
     return field
+
+
+def _normalize_field_name(field_name: str) -> str:
+    normalized = field_name.strip()
+    return FIELD_ALIASES.get(normalized, normalized)
 
 
 def _build_condition_clause(
@@ -225,27 +250,125 @@ def _build_semantic_eq_clause(
 
     if field.output_name == "status_name":
         if normalized_value == "open":
-            statuses = [
-                "New",
-                "In Progress",
-                "Scheduled",
-                "Waiting Customer",
-                "Waiting on Customer",
-                "Waiting Vendor",
-                "Waiting on Vendor",
-                "Escalated",
-                "Reopened",
-            ]
-            return _build_condition_clause(field, "in", statuses, param_name)
+            return _build_status_open_clause()
 
-        if normalized_value == "closed":
-            statuses = [
-                "Closed",
-                "Completed",
-                "Cancelled",
-                "Canceled",
-                "Resolved",
-            ]
-            return _build_condition_clause(field, "in", statuses, param_name)
+        if normalized_value in {"closed", "completed", "complete", "done"}:
+            return _build_status_closed_or_completed_clause(param_name)
+
+        if normalized_value in {"cancelled", "canceled"}:
+            return _build_status_name_contains_any_clause(
+                param_name=param_name,
+                terms=["cancelled", "canceled"],
+            )
+
+        if normalized_value in {
+            "waiting_client",
+            "waiting_on_client",
+            "waiting customer",
+            "waiting on customer",
+            "waiting on client",
+        }:
+            return _build_status_name_contains_any_clause(
+                param_name=param_name,
+                terms=[
+                    "waiting client",
+                    "waiting on client",
+                    "waiting customer",
+                    "waiting on customer",
+                    "waiting client response",
+                ],
+            )
+
+        if normalized_value in {
+            "waiting_vendor",
+            "waiting_on_vendor",
+            "waiting vendor",
+            "waiting on vendor",
+        }:
+            return _build_status_name_contains_any_clause(
+                param_name=param_name,
+                terms=["waiting vendor", "waiting on vendor"],
+            )
+
+        if normalized_value in {
+            "waiting_third_party",
+            "waiting_3rd_party",
+            "waiting on 3rd party",
+            "waiting 3rd party",
+            "waiting third party",
+        }:
+            return _build_status_name_contains_any_clause(
+                param_name=param_name,
+                terms=[
+                    "waiting on 3rd party",
+                    "waiting 3rd party",
+                    "waiting on third party",
+                    "waiting third party",
+                ],
+            )
+
+        if normalized_value in {"scheduled", "schedule"}:
+            return _build_status_name_contains_any_clause(
+                param_name=param_name,
+                terms=["scheduled"],
+            )
+
+        if normalized_value in {
+            "scheduling_required",
+            "needs_scheduling",
+            "scheduling required",
+        }:
+            return _build_status_name_contains_any_clause(
+                param_name=param_name,
+                terms=["scheduling required"],
+            )
+
+        if normalized_value == "inactive":
+            return "status.Inactive_Flag = 1", {}
+
+        if normalized_value == "active":
+            return "ISNULL(status.Inactive_Flag, 0) = 0", {}
 
     return _build_condition_clause(field, "eq", value, param_name)
+
+
+def _build_status_open_clause() -> Tuple[str, Dict[str, Any]]:
+    return (
+        "("
+        "ISNULL(status.Closed_Flag, 0) = 0 "
+        "AND ISNULL(status.Inactive_Flag, 0) = 0 "
+        "AND LOWER(status.Description) NOT LIKE '%complete%'"
+        ")",
+        {},
+    )
+
+
+def _build_status_closed_or_completed_clause(
+    param_name: str,
+) -> Tuple[str, Dict[str, Any]]:
+    completed_param = f"{param_name}_completed"
+
+    return (
+        "("
+        "ISNULL(status.Closed_Flag, 0) = 1 "
+        f"OR LOWER(status.Description) LIKE :{completed_param}"
+        ")",
+        {
+            completed_param: "%complete%",
+        },
+    )
+
+
+def _build_status_name_contains_any_clause(
+    param_name: str,
+    terms: List[str],
+) -> Tuple[str, Dict[str, Any]]:
+    clauses: List[str] = []
+    params: Dict[str, Any] = {}
+
+    for index, term in enumerate(terms):
+        term_param_name = f"{param_name}_{index}"
+        clauses.append(f"LOWER(status.Description) LIKE :{term_param_name}")
+        params[term_param_name] = f"%{term.lower()}%"
+
+    return "(" + " OR ".join(clauses) + ")", params
