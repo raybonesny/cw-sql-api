@@ -80,9 +80,9 @@ def build_semantic_sql_preview(request: SemanticSearchRequest) -> SemanticSqlPre
 
     joins_sql = _build_joins(entity, include_names)
 
-    limit = request.limit or settings.query_row_limit
-    if limit > settings.query_row_limit:
-        limit = settings.query_row_limit
+    limit = request.limit or settings.QUERY_ROW_LIMIT
+    if limit > settings.QUERY_ROW_LIMIT:
+        limit = settings.QUERY_ROW_LIMIT
 
     sql = f"""
         SELECT TOP (:limit)
