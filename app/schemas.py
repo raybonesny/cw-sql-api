@@ -51,6 +51,8 @@ class SemanticFilterCondition(BaseModel):
         "gte",
         "in",
         "contains",
+        "contains_all",
+        "contains_any",
         "startswith",
         "endswith",
         "semantic_eq",
