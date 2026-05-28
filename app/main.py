@@ -11,13 +11,16 @@ from app.schemas import (
     FilterCondition,
     QueryRequest,
     QueryResponse,
+    SemanticCountResponse,
     SemanticSearchRequest,
     SemanticSearchResponse,
 )
 from app.semantic_maps import SEMANTIC_STATUS_FIELDS, resolve_status_filter
 from app.semantic_search import (
     SemanticSearchError,
+    build_semantic_count_sql_preview,
     build_semantic_sql_preview,
+    execute_semantic_count,
     execute_semantic_search,
 )
 
@@ -224,6 +227,110 @@ def semantic_search_preview_api(
     except Exception as e:
         logger.error(
             "semantic_search_preview_unexpected_error client_ip=%s entity=%s error=%s",
+            client_ip,
+            getattr(request_body, "entity", None),
+            str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unexpected server error",
+        )
+
+
+@app.post("/api/search/count/preview")
+def semantic_count_preview_api(
+    request_body: SemanticSearchRequest,
+    http_request: Request,
+    _: Any = Depends(verify_token),
+) -> dict[str, Any]:
+
+    client_ip = get_client_ip(http_request)
+
+    try:
+        preview = build_semantic_count_sql_preview(request_body)
+
+        logger.info(
+            "semantic_count_preview_generated client_ip=%s entity=%s",
+            client_ip,
+            request_body.entity,
+        )
+
+        return preview.model_dump()
+
+    except SemanticSearchError as se:
+        logger.warning(
+            "semantic_count_preview_rejected client_ip=%s entity=%s reason=%s",
+            client_ip,
+            getattr(request_body, "entity", None),
+            str(se),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(se),
+        )
+
+    except Exception as e:
+        logger.error(
+            "semantic_count_preview_unexpected_error client_ip=%s entity=%s error=%s",
+            client_ip,
+            getattr(request_body, "entity", None),
+            str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unexpected server error",
+        )
+
+
+@app.post("/api/search/count", response_model=SemanticCountResponse)
+def semantic_count_api(
+    request_body: SemanticSearchRequest,
+    http_request: Request,
+    _: Any = Depends(verify_token),
+) -> SemanticCountResponse:
+
+    client_ip = get_client_ip(http_request)
+
+    try:
+        response = execute_semantic_count(request_body)
+
+        logger.info(
+            "semantic_count_executed client_ip=%s entity=%s count=%s execution_time_ms=%s",
+            client_ip,
+            request_body.entity,
+            response.count,
+            response.execution_time_ms,
+        )
+
+        return response
+
+    except SemanticSearchError as se:
+        logger.warning(
+            "semantic_count_rejected client_ip=%s entity=%s reason=%s",
+            client_ip,
+            getattr(request_body, "entity", None),
+            str(se),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(se),
+        )
+
+    except RuntimeError as re:
+        logger.error(
+            "semantic_count_failed client_ip=%s entity=%s error=%s",
+            client_ip,
+            getattr(request_body, "entity", None),
+            str(re),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database query failed",
+        )
+
+    except Exception as e:
+        logger.error(
+            "semantic_count_unexpected_error client_ip=%s entity=%s error=%s",
             client_ip,
             getattr(request_body, "entity", None),
             str(e),
