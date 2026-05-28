@@ -1,0 +1,23 @@
+# Local environment files
+.env
+.env.*
+*.env
+*.env.txt
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Editor/local files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
