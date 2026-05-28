@@ -1,0 +1,284 @@
+swagger: "2.0"
+info:
+  title: ConnectWise Manage Ticket Search API
+  description: Semantic ticket search, count, and ticket note retrieval for ConnectWise Manage.
+  version: "1.0.0"
+
+host: cw-manage-sql-api.purpletree-ada7f3eb.northcentralus.azurecontainerapps.io
+basePath: /
+schemes:
+  - https
+
+consumes:
+  - application/json
+produces:
+  - application/json
+
+securityDefinitions:
+  BearerAuth:
+    type: apiKey
+    name: Authorization
+    in: header
+    description: Enter the API token as "Bearer YOUR_TOKEN".
+
+security:
+  - BearerAuth: []
+
+paths:
+  /api/search/entities/ticket:
+    get:
+      operationId: GetTicketEntityMetadata
+      summary: Get supported ticket fields and includes
+      description: Returns the supported semantic fields, includes, and default selected fields for ticket queries.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Ticket entity metadata
+          schema:
+            type: object
+            properties:
+              entity:
+                type: string
+              base_table:
+                type: string
+              default_select:
+                type: array
+                items:
+                  type: string
+              fields:
+                type: array
+                items:
+                  type: string
+              includes:
+                type: array
+                items:
+                  type: string
+
+  /api/search:
+    post:
+      operationId: SearchTickets
+      summary: Search ConnectWise Manage tickets
+      description: >
+        Searches tickets using semantic field names. Use this for prompts asking to find, show, list,
+        or retrieve tickets. Use field aliases like company, status, board, owner, summary, and last_updated.
+        For multi-word summary searches, prefer contains_all.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: "#/definitions/SemanticSearchRequest"
+      responses:
+        "200":
+          description: Ticket search results
+          schema:
+            $ref: "#/definitions/SemanticSearchResponse"
+
+  /api/search/count:
+    post:
+      operationId: CountTickets
+      summary: Count ConnectWise Manage tickets
+      description: >
+        Counts tickets matching semantic filters. Use this for questions that ask how many tickets match
+        a condition.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: "#/definitions/SemanticSearchRequest"
+      responses:
+        "200":
+          description: Ticket count result
+          schema:
+            $ref: "#/definitions/SemanticCountResponse"
+
+  /api/search/ticket-notes:
+    post:
+      operationId: GetTicketNotes
+      summary: Get notes for matching tickets
+      description: >
+        Retrieves structured ticket notes for tickets matching semantic ticket filters. Use this when the user
+        asks to summarize, synthesize, review, explain, or inspect notes on tickets. The agent should summarize
+        the returned notes for the user.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: "#/definitions/TicketNotesRequest"
+      responses:
+        "200":
+          description: Ticket notes result
+          schema:
+            $ref: "#/definitions/TicketNotesResponse"
+
+definitions:
+  SemanticFilterCondition:
+    type: object
+    required:
+      - field
+      - operator
+      - value
+    properties:
+      field:
+        type: string
+        description: >
+          Semantic field name. Common values include summary, company, status, board, owner,
+          date_entered, last_updated, is_closed, type, subtype, item, urgency, impact, severity,
+          source, and team.
+      operator:
+        type: string
+        enum:
+          - eq
+          - ne
+          - lt
+          - lte
+          - gt
+          - gte
+          - in
+          - contains
+          - contains_all
+          - contains_any
+          - startswith
+          - endswith
+          - semantic_eq
+        description: >
+          Use contains for simple text matching. Use contains_all when a user gives several words that
+          should all appear somewhere in the field. Use semantic_eq for lifecycle status terms like open,
+          closed, completed, done, active, inactive, scheduled, waiting_client, and waiting_vendor.
+      value:
+        type: object
+        description: Filter value. For contains_all and contains_any, use an array of strings when possible. For most other operators, use a string, number, boolean, or list as appropriate.
+        x-ms-summary: Filter value
+
+  SemanticOrderBy:
+    type: object
+    required:
+      - field
+    properties:
+      field:
+        type: string
+      direction:
+        type: string
+        enum:
+          - asc
+          - desc
+        default: asc
+
+  SemanticSearchRequest:
+    type: object
+    required:
+      - entity
+    properties:
+      entity:
+        type: string
+        enum:
+          - ticket
+        description: Currently only ticket is supported.
+      select:
+        type: array
+        items:
+          type: string
+        description: Optional list of ticket fields to return. Omit to use default fields.
+      where:
+        type: array
+        items:
+          $ref: "#/definitions/SemanticFilterCondition"
+        description: Semantic filters to apply.
+      include:
+        type: array
+        items:
+          type: string
+        description: Optional includes. Usually omit because includes are inferred from selected and filtered fields.
+      order_by:
+        type: array
+        items:
+          $ref: "#/definitions/SemanticOrderBy"
+      limit:
+        type: integer
+        format: int32
+        minimum: 1
+        description: Maximum number of rows to return.
+
+  SemanticSearchResponse:
+    type: object
+    properties:
+      entity:
+        type: string
+      columns:
+        type: array
+        items:
+          type: string
+      rows:
+        type: array
+        items:
+          type: object
+      row_count:
+        type: integer
+        format: int32
+      execution_time_ms:
+        type: integer
+        format: int32
+
+  SemanticCountResponse:
+    type: object
+    properties:
+      entity:
+        type: string
+      count:
+        type: integer
+        format: int64
+      execution_time_ms:
+        type: integer
+        format: int32
+
+  TicketNotesRequest:
+    type: object
+    properties:
+      ticket_where:
+        type: array
+        items:
+          $ref: "#/definitions/SemanticFilterCondition"
+        description: Filters used to find matching tickets before retrieving notes.
+      limit_tickets:
+        type: integer
+        format: int32
+        minimum: 1
+        default: 10
+        description: Maximum number of matching tickets to collect notes from.
+      limit_notes:
+        type: integer
+        format: int32
+        minimum: 1
+        default: 100
+        description: Maximum number of notes to return.
+      include_internal:
+        type: boolean
+        default: true
+        description: Whether to include internal analysis/member notes.
+
+  TicketNotesResponse:
+    type: object
+    properties:
+      columns:
+        type: array
+        items:
+          type: string
+      rows:
+        type: array
+        items:
+          type: object
+      row_count:
+        type: integer
+        format: int32
+      execution_time_ms:
+        type: integer
+        format: int32
