@@ -78,6 +78,8 @@ As an API operator, I need row count and execution time limits so the service st
 - **FR-005**: The API MUST enforce row count and execution time limits.
 - **FR-006**: The API MUST log query requests, execution metadata, and outcomes for auditing.
 - **FR-007**: The API MUST return results in structured JSON with row metadata.
+- **FR-008**: The API MUST implement a domain-based query abstraction (e.g., tickets, configurations) rather than exposing raw database table names directly.
+
 
 ### Key Entities
 
