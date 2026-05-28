@@ -7,7 +7,11 @@ from sqlalchemy import text
 from app.config import settings
 from app.database import get_engine
 from app.entities.tickets import ENTITY_REGISTRY, EntityMapping, FieldMapping
-from app.schemas import SemanticSearchRequest, SemanticSearchResponse
+from app.schemas import (
+    SemanticCountResponse,
+    SemanticSearchRequest,
+    SemanticSearchResponse,
+)
 
 
 class SemanticSearchError(ValueError):
@@ -59,12 +63,27 @@ def execute_semantic_search(request: SemanticSearchRequest) -> SemanticSearchRes
     )
 
 
+def execute_semantic_count(request: SemanticSearchRequest) -> SemanticCountResponse:
+    start_time = time.perf_counter()
+
+    preview = build_semantic_count_sql_preview(request)
+
+    engine = get_engine()
+    with engine.connect() as conn:
+        result = conn.execute(text(preview.sql), preview.params)
+        count = int(result.scalar_one())
+
+    execution_time_ms = int((time.perf_counter() - start_time) * 1000)
+
+    return SemanticCountResponse(
+        entity=preview.entity,
+        count=count,
+        execution_time_ms=execution_time_ms,
+    )
+
+
 def build_semantic_sql_preview(request: SemanticSearchRequest) -> SemanticSqlPreview:
-    entity = ENTITY_REGISTRY.get(request.entity)
-    if entity is None:
-        raise SemanticSearchError(
-            f"Unsupported entity '{request.entity}'. Supported entities: {', '.join(ENTITY_REGISTRY.keys())}"
-        )
+    entity = _get_entity(request.entity)
 
     selected_fields = request.select or entity.default_select
     include_names = set(request.include or [])
@@ -101,6 +120,41 @@ def build_semantic_sql_preview(request: SemanticSearchRequest) -> SemanticSqlPre
         params=params,
         columns=output_columns,
     )
+
+
+def build_semantic_count_sql_preview(request: SemanticSearchRequest) -> SemanticSqlPreview:
+    entity = _get_entity(request.entity)
+    include_names = set(request.include or [])
+
+    where_sql, params, where_includes = _build_where(entity, request.where or [])
+    include_names.update(where_includes)
+
+    joins_sql = _build_joins(entity, include_names)
+
+    sql = f"""
+        SELECT
+            COUNT_BIG(1) AS record_count
+        FROM {entity.base_table} {entity.base_alias}
+        {joins_sql}
+        {where_sql}
+    """
+
+    return SemanticSqlPreview(
+        entity=entity.name,
+        sql=_normalize_sql_whitespace(sql),
+        params=params,
+        columns=["record_count"],
+    )
+
+
+def _get_entity(entity_name: str) -> EntityMapping:
+    entity = ENTITY_REGISTRY.get(entity_name)
+    if entity is None:
+        raise SemanticSearchError(
+            f"Unsupported entity '{entity_name}'. Supported entities: {', '.join(ENTITY_REGISTRY.keys())}"
+        )
+
+    return entity
 
 
 def _normalize_sql_whitespace(sql: str) -> str:
