@@ -15,7 +15,11 @@ from app.schemas import (
     SemanticSearchResponse,
 )
 from app.semantic_maps import SEMANTIC_STATUS_FIELDS, resolve_status_filter
-from app.semantic_search import SemanticSearchError, execute_semantic_search
+from app.semantic_search import (
+    SemanticSearchError,
+    build_semantic_sql_preview,
+    execute_semantic_search,
+)
 
 app = FastAPI(title="CW Secure SQL API", version="0.2.0")
 
@@ -177,6 +181,51 @@ def query_api(
             "unexpected_error client_ip=%s table=%s error=%s",
             client_ip,
             getattr(request_body, "table", None),
+            str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unexpected server error",
+        )
+
+
+@app.post("/api/search/preview")
+def semantic_search_preview_api(
+    request_body: SemanticSearchRequest,
+    http_request: Request,
+    _: Any = Depends(verify_token),
+) -> dict[str, Any]:
+
+    client_ip = get_client_ip(http_request)
+
+    try:
+        preview = build_semantic_sql_preview(request_body)
+
+        logger.info(
+            "semantic_search_preview_generated client_ip=%s entity=%s",
+            client_ip,
+            request_body.entity,
+        )
+
+        return preview.model_dump()
+
+    except SemanticSearchError as se:
+        logger.warning(
+            "semantic_search_preview_rejected client_ip=%s entity=%s reason=%s",
+            client_ip,
+            getattr(request_body, "entity", None),
+            str(se),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(se),
+        )
+
+    except Exception as e:
+        logger.error(
+            "semantic_search_preview_unexpected_error client_ip=%s entity=%s error=%s",
+            client_ip,
+            getattr(request_body, "entity", None),
             str(e),
         )
         raise HTTPException(
