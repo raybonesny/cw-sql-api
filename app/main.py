@@ -6,6 +6,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, status
 from app.auth import verify_token
 from app.config import validate_environment
 from app.database import build_select_query, execute_select
+from app.entities.tickets import ENTITY_REGISTRY
 from app.schemas import (
     FilterCondition,
     QueryRequest,
@@ -84,6 +85,35 @@ def get_client_ip(http_request: Request) -> str | None:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/search/entities")
+def list_search_entities(_: Any = Depends(verify_token)) -> dict[str, Any]:
+    return {
+        "entities": sorted(ENTITY_REGISTRY.keys()),
+    }
+
+
+@app.get("/api/search/entities/{entity_name}")
+def get_search_entity(
+    entity_name: str,
+    _: Any = Depends(verify_token),
+) -> dict[str, Any]:
+    entity = ENTITY_REGISTRY.get(entity_name)
+
+    if entity is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Unsupported entity '{entity_name}'.",
+        )
+
+    return {
+        "entity": entity.name,
+        "base_table": entity.base_table,
+        "default_select": entity.default_select,
+        "fields": sorted(entity.fields.keys()),
+        "includes": sorted(entity.includes.keys()),
+    }
 
 
 @app.post("/api/query", response_model=QueryResponse)
