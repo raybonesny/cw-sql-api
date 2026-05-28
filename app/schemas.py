@@ -84,3 +84,17 @@ class SemanticCountResponse(BaseModel):
     entity: str
     count: int
     execution_time_ms: int
+
+
+class TicketNotesRequest(BaseModel):
+    ticket_where: Optional[List[SemanticFilterCondition]] = None
+    limit_tickets: int = Field(default=10, ge=1)
+    limit_notes: int = Field(default=100, ge=1)
+    include_internal: bool = True
+
+
+class TicketNotesResponse(BaseModel):
+    columns: List[str]
+    rows: List[Dict[str, Any]]
+    row_count: int
+    execution_time_ms: int
