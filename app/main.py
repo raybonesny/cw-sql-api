@@ -14,6 +14,8 @@ from app.schemas import (
     SemanticCountResponse,
     SemanticSearchRequest,
     SemanticSearchResponse,
+    TicketNotesRequest,
+    TicketNotesResponse,
 )
 from app.semantic_maps import SEMANTIC_STATUS_FIELDS, resolve_status_filter
 from app.semantic_search import (
@@ -22,6 +24,10 @@ from app.semantic_search import (
     build_semantic_sql_preview,
     execute_semantic_count,
     execute_semantic_search,
+)
+from app.ticket_notes import (
+    build_ticket_notes_sql_preview,
+    execute_ticket_notes_search,
 )
 
 app = FastAPI(title="CW Secure SQL API", version="0.2.0")
@@ -333,6 +339,105 @@ def semantic_count_api(
             "semantic_count_unexpected_error client_ip=%s entity=%s error=%s",
             client_ip,
             getattr(request_body, "entity", None),
+            str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unexpected server error",
+        )
+
+
+@app.post("/api/search/ticket-notes/preview")
+def ticket_notes_preview_api(
+    request_body: TicketNotesRequest,
+    http_request: Request,
+    _: Any = Depends(verify_token),
+) -> dict[str, Any]:
+
+    client_ip = get_client_ip(http_request)
+
+    try:
+        preview = build_ticket_notes_sql_preview(request_body)
+
+        logger.info(
+            "ticket_notes_preview_generated client_ip=%s row_limit=%s note_limit=%s",
+            client_ip,
+            request_body.limit_tickets,
+            request_body.limit_notes,
+        )
+
+        return preview.model_dump()
+
+    except SemanticSearchError as se:
+        logger.warning(
+            "ticket_notes_preview_rejected client_ip=%s reason=%s",
+            client_ip,
+            str(se),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(se),
+        )
+
+    except Exception as e:
+        logger.error(
+            "ticket_notes_preview_unexpected_error client_ip=%s error=%s",
+            client_ip,
+            str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unexpected server error",
+        )
+
+
+@app.post("/api/search/ticket-notes", response_model=TicketNotesResponse)
+def ticket_notes_api(
+    request_body: TicketNotesRequest,
+    http_request: Request,
+    _: Any = Depends(verify_token),
+) -> TicketNotesResponse:
+
+    client_ip = get_client_ip(http_request)
+
+    try:
+        response = execute_ticket_notes_search(request_body)
+
+        logger.info(
+            "ticket_notes_executed client_ip=%s row_count=%s execution_time_ms=%s",
+            client_ip,
+            response.row_count,
+            response.execution_time_ms,
+        )
+
+        return response
+
+    except SemanticSearchError as se:
+        logger.warning(
+            "ticket_notes_rejected client_ip=%s reason=%s",
+            client_ip,
+            str(se),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(se),
+        )
+
+    except RuntimeError as re:
+        logger.error(
+            "ticket_notes_failed client_ip=%s error=%s",
+            client_ip,
+            str(re),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database query failed",
+        )
+
+    except Exception as e:
+        logger.error(
+            "ticket_notes_unexpected_error client_ip=%s error=%s",
+            client_ip,
             str(e),
         )
         raise HTTPException(
