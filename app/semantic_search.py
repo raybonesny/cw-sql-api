@@ -1,6 +1,7 @@
 import time
 from typing import Any, Dict, List, Set, Tuple
 
+from pydantic import BaseModel
 from sqlalchemy import text
 
 from app.config import settings
@@ -11,6 +12,13 @@ from app.schemas import SemanticSearchRequest, SemanticSearchResponse
 
 class SemanticSearchError(ValueError):
     pass
+
+
+class SemanticSqlPreview(BaseModel):
+    entity: str
+    sql: str
+    params: Dict[str, Any]
+    columns: List[str]
 
 
 FIELD_ALIASES = {
@@ -33,6 +41,25 @@ FIELD_ALIASES = {
 def execute_semantic_search(request: SemanticSearchRequest) -> SemanticSearchResponse:
     start_time = time.perf_counter()
 
+    preview = build_semantic_sql_preview(request)
+
+    engine = get_engine()
+    with engine.connect() as conn:
+        result = conn.execute(text(preview.sql), preview.params)
+        rows = [dict(row._mapping) for row in result]
+
+    execution_time_ms = int((time.perf_counter() - start_time) * 1000)
+
+    return SemanticSearchResponse(
+        entity=preview.entity,
+        columns=preview.columns,
+        rows=rows,
+        row_count=len(rows),
+        execution_time_ms=execution_time_ms,
+    )
+
+
+def build_semantic_sql_preview(request: SemanticSearchRequest) -> SemanticSqlPreview:
     entity = ENTITY_REGISTRY.get(request.entity)
     if entity is None:
         raise SemanticSearchError(
@@ -68,20 +95,16 @@ def execute_semantic_search(request: SemanticSearchRequest) -> SemanticSearchRes
 
     params["limit"] = limit
 
-    engine = get_engine()
-    with engine.connect() as conn:
-        result = conn.execute(text(sql), params)
-        rows = [dict(row._mapping) for row in result]
-
-    execution_time_ms = int((time.perf_counter() - start_time) * 1000)
-
-    return SemanticSearchResponse(
+    return SemanticSqlPreview(
         entity=entity.name,
+        sql=_normalize_sql_whitespace(sql),
+        params=params,
         columns=output_columns,
-        rows=rows,
-        row_count=len(rows),
-        execution_time_ms=execution_time_ms,
     )
+
+
+def _normalize_sql_whitespace(sql: str) -> str:
+    return "\n".join(line.rstrip() for line in sql.strip().splitlines() if line.strip())
 
 
 def _build_select(
