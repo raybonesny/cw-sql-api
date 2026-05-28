@@ -78,3 +78,9 @@ class SemanticSearchResponse(BaseModel):
     rows: List[Dict[str, Any]]
     row_count: int
     execution_time_ms: int
+
+
+class SemanticCountResponse(BaseModel):
+    entity: str
+    count: int
+    execution_time_ms: int
