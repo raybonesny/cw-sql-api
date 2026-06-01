@@ -1,9 +1,9 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "CW Ticket Tools v2",
+    "title": "CW Ticket Tools v3",
     "description": "Tools for counting, searching, and retrieving notes from ConnectWise Manage tickets.",
-    "version": "1.0.2"
+    "version": "1.0.3"
   },
   "host": "mt-copilot-apim.azure-api.net",
   "basePath": "/cw-v3",
@@ -31,11 +31,11 @@
   ],
   "paths": {
     "/api/copilot/tickets/count": {
-      "post": {
+      "get": {
         "operationId": "CopilotCountTickets",
         "summary": "Count ConnectWise tickets",
         "x-ms-summary": "Count ConnectWise tickets",
-        "description": "Counts ConnectWise Manage tickets using simple flat filters. Use this tool for any question asking how many, count, number of, total, or quantity of tickets match a condition.\n",
+        "description": "Counts ConnectWise Manage tickets using simple query parameters. Use this tool for any question asking how many, count, number of, total, or quantity of tickets match a condition.\n",
         "security": [
           {
             "BearerAuth": []
@@ -43,14 +43,84 @@
         ],
         "parameters": [
           {
-            "in": "body",
-            "name": "body",
-            "required": true,
-            "description": "Simple ticket count filters.",
-            "x-ms-summary": "Ticket count filters",
-            "schema": {
-              "$ref": "#/definitions/CopilotTicketCountRequest"
-            }
+            "in": "query",
+            "name": "company_contains",
+            "type": "string",
+            "required": false,
+            "description": "Company, customer, account, or organization name to match. Example: Oaklawn.",
+            "x-ms-summary": "Company contains"
+          },
+          {
+            "in": "query",
+            "name": "summary_contains",
+            "type": "string",
+            "required": false,
+            "description": "Text that should appear in the ticket summary. Example: SentinelOne.",
+            "x-ms-summary": "Summary contains"
+          },
+          {
+            "in": "query",
+            "name": "summary_contains_all",
+            "type": "string",
+            "required": false,
+            "description": "Comma-separated words or phrases that should all appear somewhere in the ticket summary. Example: SentinelOne,agent,unhealthy.",
+            "x-ms-summary": "Summary contains all"
+          },
+          {
+            "in": "query",
+            "name": "status_filter",
+            "type": "string",
+            "required": false,
+            "description": "User-friendly ticket status or lifecycle term. Examples include open, closed, completed, done, active, inactive, scheduled, waiting_client, and waiting_vendor.",
+            "x-ms-summary": "Status"
+          },
+          {
+            "in": "query",
+            "name": "board_contains",
+            "type": "string",
+            "required": false,
+            "description": "Board name text to match.",
+            "x-ms-summary": "Board contains"
+          },
+          {
+            "in": "query",
+            "name": "owner_contains",
+            "type": "string",
+            "required": false,
+            "description": "Ticket owner name text to match.",
+            "x-ms-summary": "Owner contains"
+          },
+          {
+            "in": "query",
+            "name": "date_entered_gte",
+            "type": "string",
+            "required": false,
+            "description": "Include tickets entered on or after this date or datetime.",
+            "x-ms-summary": "Date entered on or after"
+          },
+          {
+            "in": "query",
+            "name": "date_entered_lte",
+            "type": "string",
+            "required": false,
+            "description": "Include tickets entered on or before this date or datetime.",
+            "x-ms-summary": "Date entered on or before"
+          },
+          {
+            "in": "query",
+            "name": "last_updated_gte",
+            "type": "string",
+            "required": false,
+            "description": "Include tickets last updated on or after this date or datetime.",
+            "x-ms-summary": "Last updated on or after"
+          },
+          {
+            "in": "query",
+            "name": "last_updated_lte",
+            "type": "string",
+            "required": false,
+            "description": "Include tickets last updated on or before this date or datetime.",
+            "x-ms-summary": "Last updated on or before"
           }
         ],
         "responses": {
@@ -131,67 +201,6 @@
     }
   },
   "definitions": {
-    "CopilotTicketCountRequest": {
-      "type": "object",
-      "description": "Simple flat filters for counting ConnectWise Manage tickets.",
-      "properties": {
-        "company_contains": {
-          "type": "string",
-          "description": "Company, customer, account, or organization name to match. Example: Oaklawn.",
-          "x-ms-summary": "Company contains"
-        },
-        "summary_contains": {
-          "type": "string",
-          "description": "Text that should appear in the ticket summary. Example: SentinelOne.",
-          "x-ms-summary": "Summary contains"
-        },
-        "summary_contains_all": {
-          "type": "array",
-          "description": "Multiple words or phrases that should all appear somewhere in the ticket summary. Example values: SentinelOne, agent, unhealthy.",
-          "x-ms-summary": "Summary contains all",
-          "items": {
-            "type": "string",
-            "description": "A word or phrase that must appear in the ticket summary.",
-            "x-ms-summary": "Summary term"
-          }
-        },
-        "status": {
-          "type": "string",
-          "description": "User-friendly ticket status or lifecycle term. Examples include open, closed, completed, done, active, inactive, scheduled, waiting_client, and waiting_vendor.",
-          "x-ms-summary": "Status"
-        },
-        "board_contains": {
-          "type": "string",
-          "description": "Board name text to match.",
-          "x-ms-summary": "Board contains"
-        },
-        "owner_contains": {
-          "type": "string",
-          "description": "Ticket owner name text to match.",
-          "x-ms-summary": "Owner contains"
-        },
-        "date_entered_gte": {
-          "type": "string",
-          "description": "Include tickets entered on or after this date or datetime.",
-          "x-ms-summary": "Date entered on or after"
-        },
-        "date_entered_lte": {
-          "type": "string",
-          "description": "Include tickets entered on or before this date or datetime.",
-          "x-ms-summary": "Date entered on or before"
-        },
-        "last_updated_gte": {
-          "type": "string",
-          "description": "Include tickets last updated on or after this date or datetime.",
-          "x-ms-summary": "Last updated on or after"
-        },
-        "last_updated_lte": {
-          "type": "string",
-          "description": "Include tickets last updated on or before this date or datetime.",
-          "x-ms-summary": "Last updated on or before"
-        }
-      }
-    },
     "SemanticFilterCondition": {
       "type": "object",
       "description": "A single semantic filter condition for ticket search or ticket note requests.",
