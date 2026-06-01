@@ -8,6 +8,7 @@ from app.config import validate_environment
 from app.database import build_select_query, execute_select
 from app.entities.tickets import ENTITY_REGISTRY
 from app.schemas import (
+    CopilotTicketCountRequest,
     FilterCondition,
     QueryRequest,
     QueryResponse,
@@ -29,6 +30,8 @@ from app.ticket_notes import (
     build_ticket_notes_sql_preview,
     execute_ticket_notes_search,
 )
+from app.config import validate_environment
+from app.copilot_tickets import build_semantic_count_request_from_copilot
 
 app = FastAPI(title="CW Secure SQL API", version="0.2.0")
 
@@ -242,6 +245,61 @@ def semantic_search_preview_api(
             detail="Unexpected server error",
         )
 
+@app.post("/api/copilot/tickets/count", response_model=SemanticCountResponse)
+def copilot_ticket_count_api(
+    request_body: CopilotTicketCountRequest,
+    http_request: Request,
+    _: Any = Depends(verify_token),
+) -> SemanticCountResponse:
+
+    client_ip = get_client_ip(http_request)
+
+    try:
+        semantic_request = build_semantic_count_request_from_copilot(request_body)
+        response = execute_semantic_count(semantic_request)
+
+        logger.info(
+            "copilot_ticket_count_executed client_ip=%s count=%s execution_time_ms=%s filters=%s",
+            client_ip,
+            response.count,
+            response.execution_time_ms,
+            request_body.model_dump(exclude_none=True),
+        )
+
+        return response
+
+    except SemanticSearchError as se:
+        logger.warning(
+            "copilot_ticket_count_rejected client_ip=%s reason=%s",
+            client_ip,
+            str(se),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(se),
+        )
+
+    except RuntimeError as re:
+        logger.error(
+            "copilot_ticket_count_failed client_ip=%s error=%s",
+            client_ip,
+            str(re),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database query failed",
+        )
+
+    except Exception as e:
+        logger.error(
+            "copilot_ticket_count_unexpected_error client_ip=%s error=%s",
+            client_ip,
+            str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unexpected server error",
+        )
 
 @app.post("/api/search/count/preview")
 def semantic_count_preview_api(
