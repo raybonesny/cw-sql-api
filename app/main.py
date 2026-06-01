@@ -301,6 +301,92 @@ def copilot_ticket_count_api(
             detail="Unexpected server error",
         )
 
+@app.get("/api/copilot/tickets/count", response_model=SemanticCountResponse)
+def copilot_ticket_count_get_api(
+    http_request: Request,
+    company_contains: str | None = None,
+    summary_contains: str | None = None,
+    summary_contains_all: str | None = None,
+    status_filter: str | None = None,
+    board_contains: str | None = None,
+    owner_contains: str | None = None,
+    date_entered_gte: str | None = None,
+    date_entered_lte: str | None = None,
+    last_updated_gte: str | None = None,
+    last_updated_lte: str | None = None,
+    _: Any = Depends(verify_token),
+) -> SemanticCountResponse:
+
+    client_ip = get_client_ip(http_request)
+
+    try:
+        summary_terms = None
+        if summary_contains_all:
+            summary_terms = [
+                term.strip()
+                for term in summary_contains_all.split(",")
+                if term.strip()
+            ]
+
+        request_body = CopilotTicketCountRequest(
+            company_contains=company_contains,
+            summary_contains=summary_contains,
+            summary_contains_all=summary_terms,
+            status=status_filter,
+            board_contains=board_contains,
+            owner_contains=owner_contains,
+            date_entered_gte=date_entered_gte,
+            date_entered_lte=date_entered_lte,
+            last_updated_gte=last_updated_gte,
+            last_updated_lte=last_updated_lte,
+        )
+
+        semantic_request = build_semantic_count_request_from_copilot(request_body)
+        response = execute_semantic_count(semantic_request)
+
+        logger.info(
+            "copilot_ticket_count_get_executed client_ip=%s count=%s execution_time_ms=%s filters=%s",
+            client_ip,
+            response.count,
+            response.execution_time_ms,
+            request_body.model_dump(exclude_none=True),
+        )
+
+        return response
+
+    except SemanticSearchError as se:
+        logger.warning(
+            "copilot_ticket_count_get_rejected client_ip=%s reason=%s",
+            client_ip,
+            str(se),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(se),
+        )
+
+    except RuntimeError as re:
+        logger.error(
+            "copilot_ticket_count_get_failed client_ip=%s error=%s",
+            client_ip,
+            str(re),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database query failed",
+        )
+
+    except Exception as e:
+        logger.error(
+            "copilot_ticket_count_get_unexpected_error client_ip=%s error=%s",
+            client_ip,
+            str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unexpected server error",
+        )
+
 @app.post("/api/search/count/preview")
 def semantic_count_preview_api(
     request_body: SemanticSearchRequest,
