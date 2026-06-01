@@ -1,11 +1,11 @@
 swagger: "2.0"
 info:
-  title: ConnectWise Manage Ticket Search API
-  description: Search, count, and retrieve notes for ConnectWise Manage tickets.
-  version: "1.0.1"
+  title: CW Ticket Tools v2
+  description: Tools for counting, searching, and retrieving notes from ConnectWise Manage tickets.
+  version: "1.0.2"
 
-host: cw-manage-sql-api.purpletree-ada7f3eb.northcentralus.azurecontainerapps.io
-basePath: /
+host: mt-copilot-apim.azure-api.net
+basePath: /cw-v3
 schemes:
   - https
 
@@ -25,26 +25,38 @@ security:
   - BearerAuth: []
 
 paths:
-  /api/search/entities/ticket:
-    get:
-      operationId: GetTicketEntityMetadata
-      summary: Get supported ticket fields and includes
-      x-ms-summary: Get supported ticket fields and includes
-      description: Returns supported semantic ticket fields, default selected fields, and supported related includes. Use this tool when field discovery is needed.
+  /api/copilot/tickets/count:
+    post:
+      operationId: CopilotCountTickets
+      summary: Count ConnectWise tickets
+      x-ms-summary: Count ConnectWise tickets
+      description: >
+        Counts ConnectWise Manage tickets using simple flat filters. Use this tool for any question asking
+        how many, count, number of, total, or quantity of tickets match a condition.
       security:
         - BearerAuth: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          description: Simple ticket count filters.
+          x-ms-summary: Ticket count filters
+          schema:
+            $ref: "#/definitions/CopilotTicketCountRequest"
       responses:
         "200":
-          description: Ticket entity metadata.
+          description: Count of matching tickets.
           schema:
-            $ref: "#/definitions/TicketEntityMetadataResponse"
+            $ref: "#/definitions/SemanticCountResponse"
 
   /api/search:
     post:
       operationId: SearchTickets
-      summary: Search ConnectWise Manage tickets
-      x-ms-summary: Search ConnectWise Manage tickets
-      description: Searches ConnectWise Manage tickets using semantic field names. Use this for prompts asking to find, show, list, or retrieve tickets.
+      summary: Search ConnectWise tickets
+      x-ms-summary: Search ConnectWise tickets
+      description: >
+        Searches ConnectWise Manage tickets using semantic field names. Use this for prompts asking to find,
+        show, list, or retrieve tickets. For count questions, use Count ConnectWise tickets instead.
       security:
         - BearerAuth: []
       parameters:
@@ -61,34 +73,15 @@ paths:
           schema:
             $ref: "#/definitions/SemanticSearchResponse"
 
-  /api/search/count:
-    post:
-      operationId: CountTickets
-      summary: Count ConnectWise Manage tickets
-      x-ms-summary: Count ConnectWise Manage tickets
-      description: Counts ConnectWise Manage tickets matching semantic filters. Use this for questions asking how many tickets match a condition.
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: body
-          name: body
-          required: true
-          description: Ticket count request containing entity and filters.
-          x-ms-summary: Ticket count request
-          schema:
-            $ref: "#/definitions/SemanticSearchRequest"
-      responses:
-        "200":
-          description: Count of matching tickets.
-          schema:
-            $ref: "#/definitions/SemanticCountResponse"
-
   /api/search/ticket-notes:
     post:
       operationId: GetTicketNotes
-      summary: Get notes for matching tickets
-      x-ms-summary: Get notes for matching tickets
-      description: Retrieves structured ticket notes for tickets matching semantic ticket filters. Use this when the user asks to summarize, synthesize, review, explain, or inspect notes on tickets.
+      summary: Get ConnectWise ticket notes
+      x-ms-summary: Get ConnectWise ticket notes
+      description: >
+        Retrieves structured ticket notes for tickets matching semantic ticket filters. Use this only when the
+        user asks to summarize, synthesize, review, explain, inspect, or read ticket notes. Do not use this tool
+        for count questions.
       security:
         - BearerAuth: []
       parameters:
@@ -106,46 +99,58 @@ paths:
             $ref: "#/definitions/TicketNotesResponse"
 
 definitions:
-  TicketEntityMetadataResponse:
+  CopilotTicketCountRequest:
     type: object
-    description: Metadata describing supported ticket fields and includes.
+    description: Simple flat filters for counting ConnectWise Manage tickets.
     properties:
-      entity:
+      company_contains:
         type: string
-        description: The entity name returned by the API. For this tool, this should be ticket.
-        x-ms-summary: Entity name
-      base_table:
+        description: "Company, customer, account, or organization name to match. Example: Oaklawn."
+        x-ms-summary: Company contains
+      summary_contains:
         type: string
-        description: The underlying ConnectWise Manage database table used by the ticket entity.
-        x-ms-summary: Base table
-      default_select:
+        description: "Text that should appear in the ticket summary. Example: SentinelOne."
+        x-ms-summary: Summary contains
+      summary_contains_all:
         type: array
-        description: Default ticket fields returned when no select list is provided.
-        x-ms-summary: Default selected fields
+        description: "Multiple words or phrases that should all appear somewhere in the ticket summary. Example values: SentinelOne, agent, unhealthy."
+        x-ms-summary: Summary contains all
         items:
           type: string
-          description: A default ticket field name.
-          x-ms-summary: Default selected field
-      fields:
-        type: array
-        description: Supported semantic ticket fields that can be used in filters and selected fields.
-        x-ms-summary: Supported ticket fields
-        items:
-          type: string
-          description: A supported semantic ticket field.
-          x-ms-summary: Supported ticket field
-      includes:
-        type: array
-        description: Optional related data joins supported by the ticket entity.
-        x-ms-summary: Supported includes
-        items:
-          type: string
-          description: A supported related include.
-          x-ms-summary: Supported include
+          description: A word or phrase that must appear in the ticket summary.
+          x-ms-summary: Summary term
+      status:
+        type: string
+        description: "User-friendly ticket status or lifecycle term. Examples include open, closed, completed, done, active, inactive, scheduled, waiting_client, and waiting_vendor."
+        x-ms-summary: Status
+      board_contains:
+        type: string
+        description: Board name text to match.
+        x-ms-summary: Board contains
+      owner_contains:
+        type: string
+        description: Ticket owner name text to match.
+        x-ms-summary: Owner contains
+      date_entered_gte:
+        type: string
+        description: Include tickets entered on or after this date or datetime.
+        x-ms-summary: Date entered on or after
+      date_entered_lte:
+        type: string
+        description: Include tickets entered on or before this date or datetime.
+        x-ms-summary: Date entered on or before
+      last_updated_gte:
+        type: string
+        description: Include tickets last updated on or after this date or datetime.
+        x-ms-summary: Last updated on or after
+      last_updated_lte:
+        type: string
+        description: Include tickets last updated on or before this date or datetime.
+        x-ms-summary: Last updated on or before
 
   SemanticFilterCondition:
     type: object
-    description: A single semantic filter condition for ticket search or ticket count requests.
+    description: A single semantic filter condition for ticket search or ticket note requests.
     required:
       - field
       - operator
@@ -199,7 +204,7 @@ definitions:
 
   SemanticSearchRequest:
     type: object
-    description: Request body for searching or counting ConnectWise Manage tickets.
+    description: Request body for searching ConnectWise Manage tickets.
     required:
       - entity
     properties:
@@ -207,7 +212,7 @@ definitions:
         type: string
         enum:
           - ticket
-        description: The entity being searched or counted. Use ticket.
+        description: The entity being searched. Use ticket.
         x-ms-summary: Entity
       select:
         type: array

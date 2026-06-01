@@ -1,0 +1,461 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "CW Ticket Tools v2",
+    "description": "Tools for counting, searching, and retrieving notes from ConnectWise Manage tickets.",
+    "version": "1.0.2"
+  },
+  "host": "mt-copilot-apim.azure-api.net",
+  "basePath": "/cw-v3",
+  "schemes": [
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "securityDefinitions": {
+    "BearerAuth": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "description": "Enter the API token as \"Bearer YOUR_TOKEN\"."
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/copilot/tickets/count": {
+      "post": {
+        "operationId": "CopilotCountTickets",
+        "summary": "Count ConnectWise tickets",
+        "x-ms-summary": "Count ConnectWise tickets",
+        "description": "Counts ConnectWise Manage tickets using simple flat filters. Use this tool for any question asking how many, count, number of, total, or quantity of tickets match a condition.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "description": "Simple ticket count filters.",
+            "x-ms-summary": "Ticket count filters",
+            "schema": {
+              "$ref": "#/definitions/CopilotTicketCountRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Count of matching tickets.",
+            "schema": {
+              "$ref": "#/definitions/SemanticCountResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/search": {
+      "post": {
+        "operationId": "SearchTickets",
+        "summary": "Search ConnectWise tickets",
+        "x-ms-summary": "Search ConnectWise tickets",
+        "description": "Searches ConnectWise Manage tickets using semantic field names. Use this for prompts asking to find, show, list, or retrieve tickets. For count questions, use Count ConnectWise tickets instead.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "description": "Ticket search request containing entity, filters, selected fields, ordering, and row limit.",
+            "x-ms-summary": "Ticket search request",
+            "schema": {
+              "$ref": "#/definitions/SemanticSearchRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching ticket search results.",
+            "schema": {
+              "$ref": "#/definitions/SemanticSearchResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/search/ticket-notes": {
+      "post": {
+        "operationId": "GetTicketNotes",
+        "summary": "Get ConnectWise ticket notes",
+        "x-ms-summary": "Get ConnectWise ticket notes",
+        "description": "Retrieves structured ticket notes for tickets matching semantic ticket filters. Use this only when the user asks to summarize, synthesize, review, explain, inspect, or read ticket notes. Do not use this tool for count questions.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "description": "Ticket notes request containing ticket filters and note limits.",
+            "x-ms-summary": "Ticket notes request",
+            "schema": {
+              "$ref": "#/definitions/TicketNotesRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching ticket note records.",
+            "schema": {
+              "$ref": "#/definitions/TicketNotesResponse"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "CopilotTicketCountRequest": {
+      "type": "object",
+      "description": "Simple flat filters for counting ConnectWise Manage tickets.",
+      "properties": {
+        "company_contains": {
+          "type": "string",
+          "description": "Company, customer, account, or organization name to match. Example: Oaklawn.",
+          "x-ms-summary": "Company contains"
+        },
+        "summary_contains": {
+          "type": "string",
+          "description": "Text that should appear in the ticket summary. Example: SentinelOne.",
+          "x-ms-summary": "Summary contains"
+        },
+        "summary_contains_all": {
+          "type": "array",
+          "description": "Multiple words or phrases that should all appear somewhere in the ticket summary. Example values: SentinelOne, agent, unhealthy.",
+          "x-ms-summary": "Summary contains all",
+          "items": {
+            "type": "string",
+            "description": "A word or phrase that must appear in the ticket summary.",
+            "x-ms-summary": "Summary term"
+          }
+        },
+        "status": {
+          "type": "string",
+          "description": "User-friendly ticket status or lifecycle term. Examples include open, closed, completed, done, active, inactive, scheduled, waiting_client, and waiting_vendor.",
+          "x-ms-summary": "Status"
+        },
+        "board_contains": {
+          "type": "string",
+          "description": "Board name text to match.",
+          "x-ms-summary": "Board contains"
+        },
+        "owner_contains": {
+          "type": "string",
+          "description": "Ticket owner name text to match.",
+          "x-ms-summary": "Owner contains"
+        },
+        "date_entered_gte": {
+          "type": "string",
+          "description": "Include tickets entered on or after this date or datetime.",
+          "x-ms-summary": "Date entered on or after"
+        },
+        "date_entered_lte": {
+          "type": "string",
+          "description": "Include tickets entered on or before this date or datetime.",
+          "x-ms-summary": "Date entered on or before"
+        },
+        "last_updated_gte": {
+          "type": "string",
+          "description": "Include tickets last updated on or after this date or datetime.",
+          "x-ms-summary": "Last updated on or after"
+        },
+        "last_updated_lte": {
+          "type": "string",
+          "description": "Include tickets last updated on or before this date or datetime.",
+          "x-ms-summary": "Last updated on or before"
+        }
+      }
+    },
+    "SemanticFilterCondition": {
+      "type": "object",
+      "description": "A single semantic filter condition for ticket search or ticket note requests.",
+      "required": [
+        "field",
+        "operator",
+        "value"
+      ],
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "Semantic field name. Common values include summary, company, status, board, owner, date_entered, last_updated, is_closed, type, subtype, item, urgency, impact, severity, source, and team.",
+          "x-ms-summary": "Filter field"
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "eq",
+            "ne",
+            "lt",
+            "lte",
+            "gt",
+            "gte",
+            "in",
+            "contains",
+            "contains_all",
+            "contains_any",
+            "startswith",
+            "endswith",
+            "semantic_eq"
+          ],
+          "description": "Use contains for simple text matching. Use contains_all when several words should all appear somewhere in the field. Use contains_any when any one of several words can appear. Use semantic_eq for lifecycle status terms like open, closed, completed, done, active, inactive, scheduled, waiting_client, and waiting_vendor.",
+          "x-ms-summary": "Filter operator"
+        },
+        "value": {
+          "type": "object",
+          "description": "Filter value. For contains_all and contains_any, use an array of strings when possible. For most other operators, use a string, number, boolean, or list as appropriate.",
+          "x-ms-summary": "Filter value"
+        }
+      }
+    },
+    "SemanticOrderBy": {
+      "type": "object",
+      "description": "Sort instruction for ticket search results.",
+      "required": [
+        "field"
+      ],
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "Field to sort by, such as last_updated, date_entered, company, status, board, owner, or summary.",
+          "x-ms-summary": "Sort field"
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "asc",
+            "desc"
+          ],
+          "default": "asc",
+          "description": "Sort direction. Use asc or desc.",
+          "x-ms-summary": "Sort direction"
+        }
+      }
+    },
+    "SemanticSearchRequest": {
+      "type": "object",
+      "description": "Request body for searching ConnectWise Manage tickets.",
+      "required": [
+        "entity"
+      ],
+      "properties": {
+        "entity": {
+          "type": "string",
+          "enum": [
+            "ticket"
+          ],
+          "description": "The entity being searched. Use ticket.",
+          "x-ms-summary": "Entity"
+        },
+        "select": {
+          "type": "array",
+          "description": "Optional list of ticket fields to return. Omit this to use default ticket fields.",
+          "x-ms-summary": "Selected fields",
+          "items": {
+            "type": "string",
+            "description": "Ticket field to return.",
+            "x-ms-summary": "Selected field"
+          }
+        },
+        "where": {
+          "type": "array",
+          "description": "Semantic filters to apply to the ticket query.",
+          "x-ms-summary": "Ticket filters",
+          "items": {
+            "$ref": "#/definitions/SemanticFilterCondition"
+          }
+        },
+        "include": {
+          "type": "array",
+          "description": "Optional includes. Usually omit because includes are inferred from selected and filtered fields.",
+          "x-ms-summary": "Optional includes",
+          "items": {
+            "type": "string",
+            "description": "Optional related include.",
+            "x-ms-summary": "Optional include"
+          }
+        },
+        "order_by": {
+          "type": "array",
+          "description": "Optional sort instructions for ticket search results.",
+          "x-ms-summary": "Sort instructions",
+          "items": {
+            "$ref": "#/definitions/SemanticOrderBy"
+          }
+        },
+        "limit": {
+          "type": "integer",
+          "format": "int32",
+          "minimum": 1,
+          "description": "Maximum number of rows to return.",
+          "x-ms-summary": "Row limit"
+        }
+      }
+    },
+    "SemanticSearchResponse": {
+      "type": "object",
+      "description": "Ticket search response containing matching ticket rows.",
+      "properties": {
+        "entity": {
+          "type": "string",
+          "description": "The entity returned by the API. For this tool, this should be ticket.",
+          "x-ms-summary": "Entity"
+        },
+        "columns": {
+          "type": "array",
+          "description": "Names of the fields returned in each ticket row.",
+          "x-ms-summary": "Result columns",
+          "items": {
+            "type": "string",
+            "description": "Returned field name.",
+            "x-ms-summary": "Result column"
+          }
+        },
+        "rows": {
+          "type": "array",
+          "description": "Matching ticket records returned by the API.",
+          "x-ms-summary": "Ticket rows",
+          "items": {
+            "type": "object",
+            "description": "A matching ticket record.",
+            "x-ms-summary": "Ticket row"
+          }
+        },
+        "row_count": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Number of ticket rows returned.",
+          "x-ms-summary": "Row count"
+        },
+        "execution_time_ms": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Query execution time in milliseconds.",
+          "x-ms-summary": "Execution time milliseconds"
+        }
+      }
+    },
+    "SemanticCountResponse": {
+      "type": "object",
+      "description": "Ticket count response.",
+      "properties": {
+        "entity": {
+          "type": "string",
+          "description": "The entity returned by the API. For this tool, this should be ticket.",
+          "x-ms-summary": "Entity"
+        },
+        "count": {
+          "type": "integer",
+          "format": "int64",
+          "description": "Number of matching tickets.",
+          "x-ms-summary": "Ticket count"
+        },
+        "execution_time_ms": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Query execution time in milliseconds.",
+          "x-ms-summary": "Execution time milliseconds"
+        }
+      }
+    },
+    "TicketNotesRequest": {
+      "type": "object",
+      "description": "Request body for retrieving notes from matching tickets.",
+      "properties": {
+        "ticket_where": {
+          "type": "array",
+          "description": "Filters used to find matching tickets before retrieving notes.",
+          "x-ms-summary": "Ticket filters",
+          "items": {
+            "$ref": "#/definitions/SemanticFilterCondition"
+          }
+        },
+        "limit_tickets": {
+          "type": "integer",
+          "format": "int32",
+          "minimum": 1,
+          "default": 10,
+          "description": "Maximum number of matching tickets to collect notes from.",
+          "x-ms-summary": "Ticket limit"
+        },
+        "limit_notes": {
+          "type": "integer",
+          "format": "int32",
+          "minimum": 1,
+          "default": 100,
+          "description": "Maximum number of notes to return.",
+          "x-ms-summary": "Note limit"
+        },
+        "include_internal": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to include internal analysis and internal member notes.",
+          "x-ms-summary": "Include internal notes"
+        }
+      }
+    },
+    "TicketNotesResponse": {
+      "type": "object",
+      "description": "Ticket notes response containing structured notes from matching tickets.",
+      "properties": {
+        "columns": {
+          "type": "array",
+          "description": "Names of the fields returned in each ticket note row.",
+          "x-ms-summary": "Result columns",
+          "items": {
+            "type": "string",
+            "description": "Returned note field name.",
+            "x-ms-summary": "Result column"
+          }
+        },
+        "rows": {
+          "type": "array",
+          "description": "Matching ticket note records returned by the API.",
+          "x-ms-summary": "Ticket note rows",
+          "items": {
+            "type": "object",
+            "description": "A matching ticket note record.",
+            "x-ms-summary": "Ticket note row"
+          }
+        },
+        "row_count": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Number of note rows returned.",
+          "x-ms-summary": "Row count"
+        },
+        "execution_time_ms": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Query execution time in milliseconds.",
+          "x-ms-summary": "Execution time milliseconds"
+        }
+      }
+    }
+  }
+}
