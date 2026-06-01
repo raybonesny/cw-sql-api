@@ -87,6 +87,18 @@ class SemanticCountResponse(BaseModel):
     count: int
     execution_time_ms: int
 
+class CopilotTicketCountRequest(BaseModel):
+    company_contains: Optional[str] = None
+    summary_contains: Optional[str] = None
+    summary_contains_all: Optional[List[str]] = None
+    status: Optional[str] = None
+    board_contains: Optional[str] = None
+    owner_contains: Optional[str] = None
+    date_entered_gte: Optional[str] = None
+    date_entered_lte: Optional[str] = None
+    last_updated_gte: Optional[str] = None
+    last_updated_lte: Optional[str] = None
+
 
 class TicketNotesRequest(BaseModel):
     ticket_where: Optional[List[SemanticFilterCondition]] = None
