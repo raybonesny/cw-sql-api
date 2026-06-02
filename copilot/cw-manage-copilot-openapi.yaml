@@ -1,8 +1,8 @@
 swagger: "2.0"
 info:
-  title: CW Ticket Tools v3
+  title: CW Ticket Tools v6
   description: Tools for counting, searching, and retrieving notes from ConnectWise Manage tickets.
-  version: "1.0.3"
+  version: "1.0.6"
 
 host: mt-copilot-apim.azure-api.net
 basePath: /cw-v3
@@ -25,77 +25,34 @@ security:
   - BearerAuth: []
 
 paths:
-  /api/copilot/tickets/count:
-    get:
-      operationId: CopilotCountTickets
-      summary: Count ConnectWise tickets
+  /api/search/count:
+    post:
+      operationId: CopilotSemanticCountTickets
+      summary: Count ConnectWise tickets with filters
       x-ms-summary: Count ConnectWise tickets
       description: >
-        Counts ConnectWise Manage tickets using simple query parameters. Use this tool for any question asking
-        how many, count, number of, total, or quantity of tickets match a condition.
+        Counts ConnectWise Manage tickets using a semantic request body. Use this tool for questions asking
+        how many, count, number of, total, or quantity of tickets match conditions. Build the where array only
+        from filters stated or strongly implied by the user. Do not ask for filters that are not mentioned.
+        Use entity ticket. For company, customer, account, organization, client, or site names, use field company
+        with operator contains. For text in the ticket summary, use field summary with operator contains.
+        For multiple words or phrases that all need to appear in the ticket summary, use field summary with
+        operator contains_all and an array of strings. For status or lifecycle terms, use field status with
+        operator semantic_eq. For board names, use field board with operator contains. For owner names, use field
+        owner with operator contains. For entered or updated date ranges, use date_entered or last_updated with
+        gte and lte operators.
       security:
         - BearerAuth: []
       parameters:
-        - in: query
-          name: company_contains
-          type: string
-          required: false
-          description: "Company, customer, account, or organization name to match. Example: Oaklawn."
-          x-ms-summary: Company contains
-        - in: query
-          name: summary_contains
-          type: string
-          required: false
-          description: "Text that should appear in the ticket summary. Example: SentinelOne."
-          x-ms-summary: Summary contains
-        - in: query
-          name: summary_contains_all
-          type: string
-          required: false
-          description: "Comma-separated words or phrases that should all appear somewhere in the ticket summary. Example: SentinelOne,agent,unhealthy."
-          x-ms-summary: Summary contains all
-        - in: query
-          name: status_filter
-          type: string
-          required: false
-          description: "User-friendly ticket status or lifecycle term. Examples include open, closed, completed, done, active, inactive, scheduled, waiting_client, and waiting_vendor."
-          x-ms-summary: Status
-        - in: query
-          name: board_contains
-          type: string
-          required: false
-          description: Board name text to match.
-          x-ms-summary: Board contains
-        - in: query
-          name: owner_contains
-          type: string
-          required: false
-          description: Ticket owner name text to match.
-          x-ms-summary: Owner contains
-        - in: query
-          name: date_entered_gte
-          type: string
-          required: false
-          description: Include tickets entered on or after this date or datetime.
-          x-ms-summary: Date entered on or after
-        - in: query
-          name: date_entered_lte
-          type: string
-          required: false
-          description: Include tickets entered on or before this date or datetime.
-          x-ms-summary: Date entered on or before
-        - in: query
-          name: last_updated_gte
-          type: string
-          required: false
-          description: Include tickets last updated on or after this date or datetime.
-          x-ms-summary: Last updated on or after
-        - in: query
-          name: last_updated_lte
-          type: string
-          required: false
-          description: Include tickets last updated on or before this date or datetime.
-          x-ms-summary: Last updated on or before
+        - in: body
+          name: body
+          required: true
+          description: >
+            Semantic ticket count request. Use entity ticket. Include a where array containing only the filters
+            needed to answer the user's question. Omit unused filters.
+          x-ms-summary: Ticket count request
+          schema:
+            $ref: "#/definitions/SemanticTicketCountRequest"
       responses:
         "200":
           description: Count of matching tickets.
@@ -109,7 +66,9 @@ paths:
       x-ms-summary: Search ConnectWise tickets
       description: >
         Searches ConnectWise Manage tickets using semantic field names. Use this for prompts asking to find,
-        show, list, or retrieve tickets. For count questions, use Count ConnectWise tickets instead.
+        show, list, or retrieve tickets. For count questions, use Count ConnectWise tickets instead. Build the
+        where array only from filters stated or strongly implied by the user. Do not ask for filters that are
+        not mentioned. Use entity ticket.
       security:
         - BearerAuth: []
       parameters:
@@ -134,7 +93,8 @@ paths:
       description: >
         Retrieves structured ticket notes for tickets matching semantic ticket filters. Use this only when the
         user asks to summarize, synthesize, review, explain, inspect, or read ticket notes. Do not use this tool
-        for count questions.
+        for count questions. Build ticket_where only from filters stated or strongly implied by the user.
+        Do not ask for filters that are not mentioned.
       security:
         - BearerAuth: []
       parameters:
@@ -154,7 +114,9 @@ paths:
 definitions:
   SemanticFilterCondition:
     type: object
-    description: A single semantic filter condition for ticket search or ticket note requests.
+    description: >
+      A single semantic filter condition for ticket search, ticket count, or ticket note requests.
+      Only create filters for conditions the user stated or strongly implied.
     required:
       - field
       - operator
@@ -162,8 +124,30 @@ definitions:
     properties:
       field:
         type: string
-        description: Semantic field name. Common values include summary, company, status, board, owner, date_entered, last_updated, is_closed, type, subtype, item, urgency, impact, severity, source, and team.
+        enum:
+          - summary
+          - company
+          - status
+          - board
+          - owner
+          - date_entered
+          - last_updated
+          - is_closed
+          - type
+          - subtype
+          - item
+          - urgency
+          - impact
+          - severity
+          - source
+          - team
+        description: >
+          Semantic ticket field name. Use company for company, customer, account, organization, client, or site
+          names. Use summary for text in the ticket summary. Use status for status or lifecycle terms. Use board
+          for board names. Use owner for ticket owner names. Use date_entered for ticket entered dates. Use
+          last_updated for ticket updated dates.
         x-ms-summary: Filter field
+        x-ms-visibility: important
       operator:
         type: string
         enum:
@@ -180,12 +164,49 @@ definitions:
           - startswith
           - endswith
           - semantic_eq
-        description: Use contains for simple text matching. Use contains_all when several words should all appear somewhere in the field. Use contains_any when any one of several words can appear. Use semantic_eq for lifecycle status terms like open, closed, completed, done, active, inactive, scheduled, waiting_client, and waiting_vendor.
+        description: >
+          Filter operator. Use contains for simple text matching. Use contains_all when several words or phrases
+          should all appear somewhere in the same field. Use contains_any when any one of several words or phrases
+          can appear. Use semantic_eq for lifecycle status terms like open, closed, completed, done, active,
+          inactive, scheduled, waiting_client, and waiting_vendor. Use gte and lte for date ranges.
         x-ms-summary: Filter operator
+        x-ms-visibility: important
       value:
-        type: object
-        description: Filter value. For contains_all and contains_any, use an array of strings when possible. For most other operators, use a string, number, boolean, or list as appropriate.
+        description: >
+          Filter value. For contains_all and contains_any, use an array of strings when possible. For most other
+          operators, use a string, number, boolean, or list as appropriate.
         x-ms-summary: Filter value
+        x-ms-visibility: important
+
+  SemanticTicketCountRequest:
+    type: object
+    description: >
+      Request body for counting ConnectWise Manage tickets. Always use entity ticket.
+      The where array is required and must contain only the filters needed to answer the user's question.
+      Do not ask for filters that are not mentioned.
+    required:
+      - entity
+      - where
+    properties:
+      entity:
+        type: string
+        enum:
+          - ticket
+        default: ticket
+        description: The entity being counted. Always use ticket.
+        x-ms-summary: Entity
+        x-ms-visibility: important
+      where:
+        type: array
+        minItems: 1
+        description: >
+          Filters to apply to the ticket count. Include only filters explicitly stated or strongly implied by
+          the user. For "How many Oaklawn tickets have SentinelOne in the summary?", use two filters:
+          company contains Oaklawn, and summary contains SentinelOne.
+        x-ms-summary: Ticket filters
+        x-ms-visibility: important
+        items:
+          $ref: "#/definitions/SemanticFilterCondition"
 
   SemanticOrderBy:
     type: object
@@ -195,7 +216,15 @@ definitions:
     properties:
       field:
         type: string
-        description: Field to sort by, such as last_updated, date_entered, company, status, board, owner, or summary.
+        enum:
+          - last_updated
+          - date_entered
+          - company
+          - status
+          - board
+          - owner
+          - summary
+        description: Field to sort by.
         x-ms-summary: Sort field
       direction:
         type: string
@@ -208,7 +237,9 @@ definitions:
 
   SemanticSearchRequest:
     type: object
-    description: Request body for searching ConnectWise Manage tickets.
+    description: >
+      Request body for searching ConnectWise Manage tickets. Use entity ticket. Include only filters that are
+      needed to answer the user's question. Do not ask the user for optional filters that were not mentioned.
     required:
       - entity
     properties:
@@ -216,20 +247,42 @@ definitions:
         type: string
         enum:
           - ticket
-        description: The entity being searched. Use ticket.
+        description: The entity being searched. Always use ticket.
         x-ms-summary: Entity
+        x-ms-visibility: important
       select:
         type: array
-        description: Optional list of ticket fields to return. Omit this to use default ticket fields.
+        description: Optional list of ticket fields to return.
         x-ms-summary: Selected fields
         items:
           type: string
+          enum:
+            - id
+            - summary
+            - company
+            - status
+            - board
+            - owner
+            - date_entered
+            - last_updated
+            - is_closed
+            - type
+            - subtype
+            - item
+            - urgency
+            - impact
+            - severity
+            - source
+            - team
           description: Ticket field to return.
           x-ms-summary: Selected field
       where:
         type: array
-        description: Semantic filters to apply to the ticket query.
+        description: >
+          Semantic filters to apply to the ticket query. Include only filters explicitly stated or strongly implied
+          by the user. Omit unused filters.
         x-ms-summary: Ticket filters
+        x-ms-visibility: important
         items:
           $ref: "#/definitions/SemanticFilterCondition"
       include:
@@ -309,11 +362,15 @@ definitions:
 
   TicketNotesRequest:
     type: object
-    description: Request body for retrieving notes from matching tickets.
+    description: >
+      Request body for retrieving notes from matching tickets. Include only ticket filters that are explicitly
+      stated or strongly implied by the user.
     properties:
       ticket_where:
         type: array
-        description: Filters used to find matching tickets before retrieving notes.
+        description: >
+          Filters used to find matching tickets before retrieving notes. Include only filters explicitly stated
+          or strongly implied by the user. Omit unused filters.
         x-ms-summary: Ticket filters
         items:
           $ref: "#/definitions/SemanticFilterCondition"

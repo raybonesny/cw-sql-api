@@ -148,7 +148,9 @@ def build_semantic_count_sql_preview(request: SemanticSearchRequest) -> Semantic
 
 
 def _get_entity(entity_name: str) -> EntityMapping:
-    entity = ENTITY_REGISTRY.get(entity_name)
+    normalized_entity_name = str(entity_name).strip().lower().replace(" ", "_")
+
+    entity = ENTITY_REGISTRY.get(normalized_entity_name)
     if entity is None:
         raise SemanticSearchError(
             f"Unsupported entity '{entity_name}'. Supported entities: {', '.join(ENTITY_REGISTRY.keys())}"
@@ -223,7 +225,7 @@ def _build_order_by(
 
     for item in order_by:
         field = _get_field(entity, item.field)
-        direction = "DESC" if item.direction.lower() == "desc" else "ASC"
+        direction = "DESC" if str(item.direction).strip().lower() == "desc" else "ASC"
         parts.append(f"{field.sql_expression} {direction}")
 
         if field.required_include:
@@ -259,8 +261,12 @@ def _get_field(entity: EntityMapping, field_name: str) -> FieldMapping:
 
 
 def _normalize_field_name(field_name: str) -> str:
-    normalized = field_name.strip()
+    normalized = str(field_name).strip().lower().replace(" ", "_")
     return FIELD_ALIASES.get(normalized, normalized)
+
+
+def _normalize_operator(operator: str) -> str:
+    return str(operator).strip().lower().replace(" ", "_")
 
 
 def _build_condition_clause(
@@ -270,6 +276,7 @@ def _build_condition_clause(
     param_name: str,
 ) -> Tuple[str, Dict[str, Any]]:
     expression = field.sql_expression
+    operator = _normalize_operator(operator)
 
     if operator == "eq":
         return f"{expression} = :{param_name}", {param_name: value}
