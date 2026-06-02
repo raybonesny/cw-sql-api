@@ -173,6 +173,32 @@ class CopilotSemanticCountJsonRequest(BaseModel):
         return normalize_token(value)
 
 
+class CopilotSemanticSearchJsonRequest(BaseModel):
+    entity: Literal["ticket"] = "ticket"
+    filters_json: Optional[str] = None
+    select_json: Optional[str] = None
+    order_by_json: Optional[str] = None
+    limit: Optional[int] = Field(default=10, ge=1)
+
+    @field_validator("entity", mode="before")
+    @classmethod
+    def normalize_entity(cls, value: Any) -> str:
+        return normalize_token(value)
+
+
+class CopilotTicketNotesJsonRequest(BaseModel):
+    entity: Literal["ticket"] = "ticket"
+    filters_json: str
+    limit_tickets: int = Field(default=10, ge=1)
+    limit_notes: int = Field(default=100, ge=1)
+    include_internal: bool = True
+
+    @field_validator("entity", mode="before")
+    @classmethod
+    def normalize_entity(cls, value: Any) -> str:
+        return normalize_token(value)
+
+
 class TicketNotesRequest(BaseModel):
     ticket_where: Optional[List[SemanticFilterCondition]] = None
     limit_tickets: int = Field(default=10, ge=1)
