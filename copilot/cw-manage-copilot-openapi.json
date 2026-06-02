@@ -1,9 +1,9 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "CW Ticket Tools v7",
-    "description": "Tools for counting, searching, and retrieving notes from ConnectWise Manage tickets.",
-    "version": "1.0.7"
+    "title": "CW Ticket Count Tools v9",
+    "description": "Tool for counting ConnectWise Manage tickets using JSON text filters.",
+    "version": "1.0.9"
   },
   "host": "mt-copilot-apim.azure-api.net",
   "basePath": "/cw-v3",
@@ -30,12 +30,12 @@
     }
   ],
   "paths": {
-    "/api/search/count": {
+    "/api/copilot/tickets/count/json": {
       "post": {
-        "operationId": "CopilotSemanticCountTickets",
-        "summary": "Count ConnectWise tickets with filters",
+        "operationId": "CopilotCountTicketsJsonFilters",
+        "summary": "Count ConnectWise tickets",
         "x-ms-summary": "Count ConnectWise tickets",
-        "description": "Counts ConnectWise Manage tickets using a semantic request body. Use this tool for questions asking how many, count, number of, total, or quantity of tickets match conditions. Build the where array only from filters stated or strongly implied by the user. Do not ask for filters that are not mentioned. Use entity ticket. For company, customer, account, organization, client, or site names, create a filter with field company, operator contains, and the company name as value. For text in the ticket summary, create a filter with field summary, operator contains, and the summary text as value. For multiple words or phrases that all need to appear in the ticket summary, use field summary with operator contains_all and an array of strings. For status or lifecycle terms, use field status with operator semantic_eq. For board names, use field board with operator contains. For owner names, use field owner with operator contains. For entered or updated date ranges, use date_entered or last_updated with gte and lte operators.\n",
+        "description": "Counts ConnectWise Manage tickets using JSON text filters. Use this tool for questions asking how many, count, number of, total, or quantity of tickets match conditions.\nAlways use entity ticket.\nThe filters_json input must be a valid JSON array string. Do not ask the user for filters that are not mentioned. Only include filters stated or strongly implied by the user.\nFor company, customer, account, organization, client, or site names, add: {\"field\":\"company\",\"operator\":\"contains\",\"value\":\"COMPANY_NAME\"}\nFor text in the ticket summary, add: {\"field\":\"summary\",\"operator\":\"contains\",\"value\":\"SUMMARY_TEXT\"}\nFor status or lifecycle terms, add: {\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"STATUS_TERM\"}\nFor board names, add: {\"field\":\"board\",\"operator\":\"contains\",\"value\":\"BOARD_NAME\"}\nFor owner names, add: {\"field\":\"owner\",\"operator\":\"contains\",\"value\":\"OWNER_NAME\"}\nFor entered date ranges, use field date_entered with operators gte and lte.\nFor updated date ranges, use field last_updated with operators gte and lte.\nExample user question: How many Oaklawn tickets have SentinelOne in the summary?\nExample filters_json value: [{\"field\":\"company\",\"operator\":\"contains\",\"value\":\"Oaklawn\"},{\"field\":\"summary\",\"operator\":\"contains\",\"value\":\"SentinelOne\"}]\n",
         "security": [
           {
             "BearerAuth": []
@@ -46,10 +46,10 @@
             "in": "body",
             "name": "body",
             "required": true,
-            "description": "Semantic ticket count request. Use entity ticket. Include a where array containing only the filters needed to answer the user's question. Omit unused filters.\n",
+            "description": "Ticket count request with JSON text filters.",
             "x-ms-summary": "Ticket count request",
             "schema": {
-              "$ref": "#/definitions/SemanticTicketCountRequest"
+              "$ref": "#/definitions/CopilotSemanticCountJsonRequest"
             }
           }
         ],
@@ -62,247 +62,29 @@
           }
         }
       }
-    },
-    "/api/search": {
-      "post": {
-        "operationId": "SearchTickets",
-        "summary": "Search ConnectWise tickets",
-        "x-ms-summary": "Search ConnectWise tickets",
-        "description": "Searches ConnectWise Manage tickets using semantic field names. Use this for prompts asking to find, show, list, or retrieve tickets. For count questions, use Count ConnectWise tickets instead. Build the where array only from filters stated or strongly implied by the user. Do not ask for filters that are not mentioned. Use entity ticket.\n",
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "body",
-            "name": "body",
-            "required": true,
-            "description": "Ticket search request containing entity, filters, selected fields, ordering, and row limit.",
-            "x-ms-summary": "Ticket search request",
-            "schema": {
-              "$ref": "#/definitions/SemanticSearchRequest"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Matching ticket search results.",
-            "schema": {
-              "$ref": "#/definitions/SemanticSearchResponse"
-            }
-          }
-        }
-      }
-    },
-    "/api/search/ticket-notes": {
-      "post": {
-        "operationId": "GetTicketNotes",
-        "summary": "Get ConnectWise ticket notes",
-        "x-ms-summary": "Get ConnectWise ticket notes",
-        "description": "Retrieves structured ticket notes for tickets matching semantic ticket filters. Use this only when the user asks to summarize, synthesize, review, explain, inspect, or read ticket notes. Do not use this tool for count questions. Build ticket_where only from filters stated or strongly implied by the user. Do not ask for filters that are not mentioned.\n",
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "body",
-            "name": "body",
-            "required": true,
-            "description": "Ticket notes request containing ticket filters and note limits.",
-            "x-ms-summary": "Ticket notes request",
-            "schema": {
-              "$ref": "#/definitions/TicketNotesRequest"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Matching ticket note records.",
-            "schema": {
-              "$ref": "#/definitions/TicketNotesResponse"
-            }
-          }
-        }
-      }
     }
   },
   "definitions": {
-    "SemanticFilterCondition": {
+    "CopilotSemanticCountJsonRequest": {
       "type": "object",
-      "description": "A single semantic filter condition for ticket search, ticket count, or ticket note requests. Only create filters for conditions the user stated or strongly implied. Each filter object must have field, operator, and value properties.\n",
-      "required": [
-        "field",
-        "operator",
-        "value"
-      ],
-      "properties": {
-        "field": {
-          "type": "string",
-          "description": "Semantic ticket field name. Use company for company, customer, account, organization, client, or site names. Use summary for text in the ticket summary. Use status for status or lifecycle terms. Use board for board names. Use owner for ticket owner names. Use date_entered for ticket entered dates. Use last_updated for ticket updated dates. Supported values include company, summary, status, board, owner, date_entered, last_updated, is_closed, type, subtype, item, urgency, impact, severity, source, and team.\n",
-          "x-ms-summary": "Filter field"
-        },
-        "operator": {
-          "type": "string",
-          "description": "Filter operator. Use contains for simple text matching. Use contains_all when several words or phrases should all appear somewhere in the same field. Use contains_any when any one of several words or phrases can appear. Use semantic_eq for lifecycle status terms like open, closed, completed, done, active, inactive, scheduled, waiting_client, and waiting_vendor. Use gte and lte for date ranges. Supported values include eq, ne, lt, lte, gt, gte, in, contains, contains_all, contains_any, startswith, endswith, and semantic_eq.\n",
-          "x-ms-summary": "Filter operator"
-        },
-        "value": {
-          "description": "Filter value. For contains_all and contains_any, use an array of strings when possible. For most other operators, use a string, number, boolean, or list as appropriate.\n",
-          "x-ms-summary": "Filter value"
-        }
-      }
-    },
-    "SemanticTicketCountRequest": {
-      "type": "object",
-      "description": "Request body for counting ConnectWise Manage tickets. Always use entity ticket. The where array is required and must contain only the filters needed to answer the user's question. Do not ask for filters that are not mentioned.\n",
+      "description": "Request body for counting ConnectWise Manage tickets. Use entity ticket and generate filters_json as a valid JSON array string.\n",
       "required": [
         "entity",
-        "where"
+        "filters_json"
       ],
       "properties": {
         "entity": {
           "type": "string",
           "default": "ticket",
-          "description": "The entity being counted. Always use ticket.",
+          "description": "Always use ticket.",
           "x-ms-summary": "Entity",
           "x-ms-visibility": "important"
         },
-        "where": {
-          "type": "array",
-          "minItems": 1,
-          "description": "Filters to apply to the ticket count. Include only filters explicitly stated or strongly implied by the user. For \"How many Oaklawn tickets have SentinelOne in the summary?\", use two filters: field company operator contains value Oaklawn, and field summary operator contains value SentinelOne.\n",
-          "x-ms-summary": "Ticket filters",
-          "x-ms-visibility": "important",
-          "items": {
-            "$ref": "#/definitions/SemanticFilterCondition"
-          }
-        }
-      }
-    },
-    "SemanticOrderBy": {
-      "type": "object",
-      "description": "Sort instruction for ticket search results.",
-      "required": [
-        "field"
-      ],
-      "properties": {
-        "field": {
+        "filters_json": {
           "type": "string",
-          "description": "Field to sort by. Supported values include last_updated, date_entered, company, status, board, owner, and summary.\n",
-          "x-ms-summary": "Sort field"
-        },
-        "direction": {
-          "type": "string",
-          "default": "asc",
-          "description": "Sort direction. Use asc or desc.",
-          "x-ms-summary": "Sort direction"
-        }
-      }
-    },
-    "SemanticSearchRequest": {
-      "type": "object",
-      "description": "Request body for searching ConnectWise Manage tickets. Use entity ticket. Include only filters that are needed to answer the user's question. Do not ask the user for optional filters that were not mentioned.\n",
-      "required": [
-        "entity"
-      ],
-      "properties": {
-        "entity": {
-          "type": "string",
-          "default": "ticket",
-          "description": "The entity being searched. Always use ticket.",
-          "x-ms-summary": "Entity",
+          "description": "A valid JSON array string containing filter objects. Include only filters stated or strongly implied by the user's question. Each filter object must include field, operator, and value. For example: [{\"field\":\"company\",\"operator\":\"contains\",\"value\":\"Oaklawn\"},{\"field\":\"summary\",\"operator\":\"contains\",\"value\":\"SentinelOne\"}]\n",
+          "x-ms-summary": "Filters JSON",
           "x-ms-visibility": "important"
-        },
-        "select": {
-          "type": "array",
-          "description": "Optional list of ticket fields to return.",
-          "x-ms-summary": "Selected fields",
-          "items": {
-            "type": "string",
-            "description": "Ticket field to return.",
-            "x-ms-summary": "Selected field"
-          }
-        },
-        "where": {
-          "type": "array",
-          "description": "Semantic filters to apply to the ticket query. Include only filters explicitly stated or strongly implied by the user. Omit unused filters.\n",
-          "x-ms-summary": "Ticket filters",
-          "x-ms-visibility": "important",
-          "items": {
-            "$ref": "#/definitions/SemanticFilterCondition"
-          }
-        },
-        "include": {
-          "type": "array",
-          "description": "Optional includes. Usually omit because includes are inferred from selected and filtered fields.",
-          "x-ms-summary": "Optional includes",
-          "items": {
-            "type": "string",
-            "description": "Optional related include.",
-            "x-ms-summary": "Optional include"
-          }
-        },
-        "order_by": {
-          "type": "array",
-          "description": "Optional sort instructions for ticket search results.",
-          "x-ms-summary": "Sort instructions",
-          "items": {
-            "$ref": "#/definitions/SemanticOrderBy"
-          }
-        },
-        "limit": {
-          "type": "integer",
-          "format": "int32",
-          "minimum": 1,
-          "description": "Maximum number of rows to return.",
-          "x-ms-summary": "Row limit"
-        }
-      }
-    },
-    "SemanticSearchResponse": {
-      "type": "object",
-      "description": "Ticket search response containing matching ticket rows.",
-      "properties": {
-        "entity": {
-          "type": "string",
-          "description": "The entity returned by the API. For this tool, this should be ticket.",
-          "x-ms-summary": "Entity"
-        },
-        "columns": {
-          "type": "array",
-          "description": "Names of the fields returned in each ticket row.",
-          "x-ms-summary": "Result columns",
-          "items": {
-            "type": "string",
-            "description": "Returned field name.",
-            "x-ms-summary": "Result column"
-          }
-        },
-        "rows": {
-          "type": "array",
-          "description": "Matching ticket records returned by the API.",
-          "x-ms-summary": "Ticket rows",
-          "items": {
-            "type": "object",
-            "description": "A matching ticket record.",
-            "x-ms-summary": "Ticket row"
-          }
-        },
-        "row_count": {
-          "type": "integer",
-          "format": "int32",
-          "description": "Number of ticket rows returned.",
-          "x-ms-summary": "Row count"
-        },
-        "execution_time_ms": {
-          "type": "integer",
-          "format": "int32",
-          "description": "Query execution time in milliseconds.",
-          "x-ms-summary": "Execution time milliseconds"
         }
       }
     },
@@ -312,7 +94,7 @@
       "properties": {
         "entity": {
           "type": "string",
-          "description": "The entity returned by the API. For this tool, this should be ticket.",
+          "description": "Entity counted.",
           "x-ms-summary": "Entity"
         },
         "count": {
@@ -320,80 +102,6 @@
           "format": "int64",
           "description": "Number of matching tickets.",
           "x-ms-summary": "Ticket count"
-        },
-        "execution_time_ms": {
-          "type": "integer",
-          "format": "int32",
-          "description": "Query execution time in milliseconds.",
-          "x-ms-summary": "Execution time milliseconds"
-        }
-      }
-    },
-    "TicketNotesRequest": {
-      "type": "object",
-      "description": "Request body for retrieving notes from matching tickets. Include only ticket filters that are explicitly stated or strongly implied by the user.\n",
-      "properties": {
-        "ticket_where": {
-          "type": "array",
-          "description": "Filters used to find matching tickets before retrieving notes. Include only filters explicitly stated or strongly implied by the user. Omit unused filters.\n",
-          "x-ms-summary": "Ticket filters",
-          "items": {
-            "$ref": "#/definitions/SemanticFilterCondition"
-          }
-        },
-        "limit_tickets": {
-          "type": "integer",
-          "format": "int32",
-          "minimum": 1,
-          "default": 10,
-          "description": "Maximum number of matching tickets to collect notes from.",
-          "x-ms-summary": "Ticket limit"
-        },
-        "limit_notes": {
-          "type": "integer",
-          "format": "int32",
-          "minimum": 1,
-          "default": 100,
-          "description": "Maximum number of notes to return.",
-          "x-ms-summary": "Note limit"
-        },
-        "include_internal": {
-          "type": "boolean",
-          "default": true,
-          "description": "Whether to include internal analysis and internal member notes.",
-          "x-ms-summary": "Include internal notes"
-        }
-      }
-    },
-    "TicketNotesResponse": {
-      "type": "object",
-      "description": "Ticket notes response containing structured notes from matching tickets.",
-      "properties": {
-        "columns": {
-          "type": "array",
-          "description": "Names of the fields returned in each ticket note row.",
-          "x-ms-summary": "Result columns",
-          "items": {
-            "type": "string",
-            "description": "Returned note field name.",
-            "x-ms-summary": "Result column"
-          }
-        },
-        "rows": {
-          "type": "array",
-          "description": "Matching ticket note records returned by the API.",
-          "x-ms-summary": "Ticket note rows",
-          "items": {
-            "type": "object",
-            "description": "A matching ticket note record.",
-            "x-ms-summary": "Ticket note row"
-          }
-        },
-        "row_count": {
-          "type": "integer",
-          "format": "int32",
-          "description": "Number of note rows returned.",
-          "x-ms-summary": "Row count"
         },
         "execution_time_ms": {
           "type": "integer",
