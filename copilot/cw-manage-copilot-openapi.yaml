@@ -1,8 +1,8 @@
 swagger: "2.0"
 info:
-  title: CW Ticket Count Tools v10
-  description: Count ConnectWise Manage tickets using JSON text filters.
-  version: "1.0.10"
+  title: CW Ticket Tools v11
+  description: Count, search, and retrieve ConnectWise Manage ticket notes using JSON text filters.
+  version: "1.0.11"
 
 host: mt-copilot-apim.azure-api.net
 basePath: /cw-v3
@@ -31,10 +31,9 @@ paths:
       summary: Count ConnectWise tickets
       x-ms-summary: Count ConnectWise tickets
       description: >
-        Counts ConnectWise Manage tickets. Use entity ticket. Generate filters_json as a JSON array string.
-        Include only filters stated by the user. Use company contains for customer/client names. Use summary
-        contains for text in the ticket summary. Example filters_json:
-        [{"field":"company","operator":"contains","value":"Oaklawn"},{"field":"summary","operator":"contains","value":"SentinelOne"}]
+        Counts ConnectWise Manage tickets. Use for how many/count/total questions.
+        Use entity ticket. Generate filters_json as a JSON array string. Include only filters stated by the user.
+        Use company contains for customer/client names. Use summary contains for text in the ticket summary.
       security:
         - BearerAuth: []
       parameters:
@@ -44,15 +43,65 @@ paths:
           description: Ticket count request.
           x-ms-summary: Ticket count request
           schema:
-            $ref: "#/definitions/CopilotSemanticCountJsonRequest"
+            $ref: "#/definitions/CopilotCountRequest"
       responses:
         "200":
           description: Count of matching tickets.
           schema:
             $ref: "#/definitions/SemanticCountResponse"
 
+  /api/copilot/tickets/search/json:
+    post:
+      operationId: CopilotSearchTicketsJsonFilters
+      summary: Search ConnectWise tickets
+      x-ms-summary: Search ConnectWise tickets
+      description: >
+        Searches ConnectWise Manage tickets. Use for find/show/list/retrieve ticket questions.
+        Use entity ticket. Generate filters_json as a JSON array string when filters are needed.
+        Use select_json only when fields are requested or helpful. Use order_by_json only when sorting is requested.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          description: Ticket search request.
+          x-ms-summary: Ticket search request
+          schema:
+            $ref: "#/definitions/CopilotSearchRequest"
+      responses:
+        "200":
+          description: Matching ticket rows.
+          schema:
+            $ref: "#/definitions/SemanticSearchResponse"
+
+  /api/copilot/tickets/notes/json:
+    post:
+      operationId: CopilotGetTicketNotesJsonFilters
+      summary: Get ConnectWise ticket notes
+      x-ms-summary: Get ConnectWise ticket notes
+      description: >
+        Retrieves notes from matching ConnectWise Manage tickets. Use for summarize/review/read/explain
+        ticket notes. Use entity ticket. Generate filters_json as a JSON array string. Include only filters
+        stated by the user.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          description: Ticket notes request.
+          x-ms-summary: Ticket notes request
+          schema:
+            $ref: "#/definitions/CopilotNotesRequest"
+      responses:
+        "200":
+          description: Matching ticket notes.
+          schema:
+            $ref: "#/definitions/TicketNotesResponse"
+
 definitions:
-  CopilotSemanticCountJsonRequest:
+  CopilotCountRequest:
     type: object
     description: Count ticket request with JSON text filters.
     required:
@@ -68,10 +117,89 @@ definitions:
       filters_json:
         type: string
         description: >
-          JSON array string of filter objects. Each object has field, operator, and value. Example:
-          [{"field":"company","operator":"contains","value":"Oaklawn"},{"field":"summary","operator":"contains","value":"SentinelOne"}]
+          JSON array string of filter objects. Each object has field, operator, and value.
+          Example: [{"field":"company","operator":"contains","value":"Oaklawn"},{"field":"summary","operator":"contains","value":"SentinelOne"}]
         x-ms-summary: Filters JSON
         x-ms-visibility: important
+
+  CopilotSearchRequest:
+    type: object
+    description: Search ticket request with optional JSON text filters, fields, and sorting.
+    required:
+      - entity
+    properties:
+      entity:
+        type: string
+        default: ticket
+        description: Always use ticket.
+        x-ms-summary: Entity
+        x-ms-visibility: important
+      filters_json:
+        type: string
+        description: >
+          Optional JSON array string of filter objects. Omit when the user does not ask for filtering.
+          Example: [{"field":"company","operator":"contains","value":"Oaklawn"},{"field":"summary","operator":"contains","value":"SentinelOne"}]
+        x-ms-summary: Filters JSON
+        x-ms-visibility: important
+      select_json:
+        type: string
+        description: >
+          Optional JSON array string of fields to return. Omit unless needed. Good default:
+          ["id","company","summary","status","date_entered","last_updated"]
+        x-ms-summary: Select JSON
+      order_by_json:
+        type: string
+        description: >
+          Optional JSON array string of sort objects. Omit unless sorting is requested.
+          Example: [{"field":"last_updated","direction":"desc"}]
+        x-ms-summary: Order by JSON
+      limit:
+        type: integer
+        format: int32
+        default: 10
+        minimum: 1
+        description: Maximum number of ticket rows to return. Use 10 unless the user asks for another amount.
+        x-ms-summary: Row limit
+
+  CopilotNotesRequest:
+    type: object
+    description: Ticket notes request with JSON text filters.
+    required:
+      - entity
+      - filters_json
+    properties:
+      entity:
+        type: string
+        default: ticket
+        description: Always use ticket.
+        x-ms-summary: Entity
+        x-ms-visibility: important
+      filters_json:
+        type: string
+        description: >
+          JSON array string of filter objects used to find matching tickets before retrieving notes.
+          Example: [{"field":"company","operator":"contains","value":"Oaklawn"},{"field":"summary","operator":"contains","value":"SentinelOne"}]
+        x-ms-summary: Filters JSON
+        x-ms-visibility: important
+      limit_tickets:
+        type: integer
+        format: int32
+        default: 5
+        minimum: 1
+        description: Maximum number of matching tickets to collect notes from. Use 5 unless the user asks for more.
+        x-ms-summary: Ticket limit
+      limit_notes:
+        type: integer
+        format: int32
+        default: 25
+        minimum: 1
+        description: Maximum number of notes to return. Use 25 unless the user asks for more.
+        x-ms-summary: Note limit
+      include_internal:
+        type: boolean
+        default: true
+        description: Whether to include internal notes. Use true unless the user asks for public/customer notes only.
+        x-ms-summary: Include internal notes
 
   SemanticCountResponse:
     type: object
@@ -86,6 +214,64 @@ definitions:
         format: int64
         description: Number of matching tickets.
         x-ms-summary: Ticket count
+      execution_time_ms:
+        type: integer
+        format: int32
+        description: Query execution time in milliseconds.
+        x-ms-summary: Execution time milliseconds
+
+  SemanticSearchResponse:
+    type: object
+    description: Ticket search response.
+    properties:
+      entity:
+        type: string
+        description: Entity searched.
+        x-ms-summary: Entity
+      columns:
+        type: array
+        description: Returned column names.
+        x-ms-summary: Columns
+        items:
+          type: string
+      rows:
+        type: array
+        description: Matching ticket rows.
+        x-ms-summary: Rows
+        items:
+          type: object
+      row_count:
+        type: integer
+        format: int32
+        description: Number of rows returned.
+        x-ms-summary: Row count
+      execution_time_ms:
+        type: integer
+        format: int32
+        description: Query execution time in milliseconds.
+        x-ms-summary: Execution time milliseconds
+
+  TicketNotesResponse:
+    type: object
+    description: Ticket notes response.
+    properties:
+      columns:
+        type: array
+        description: Returned column names.
+        x-ms-summary: Columns
+        items:
+          type: string
+      rows:
+        type: array
+        description: Matching ticket note rows.
+        x-ms-summary: Rows
+        items:
+          type: object
+      row_count:
+        type: integer
+        format: int32
+        description: Number of note rows returned.
+        x-ms-summary: Row count
       execution_time_ms:
         type: integer
         format: int32
