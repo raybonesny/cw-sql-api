@@ -163,6 +163,16 @@ class CopilotTicketCountRequest(BaseModel):
     last_updated_lte: Optional[str] = None
 
 
+class CopilotSemanticCountJsonRequest(BaseModel):
+    entity: Literal["ticket"] = "ticket"
+    filters_json: str
+
+    @field_validator("entity", mode="before")
+    @classmethod
+    def normalize_entity(cls, value: Any) -> str:
+        return normalize_token(value)
+
+
 class TicketNotesRequest(BaseModel):
     ticket_where: Optional[List[SemanticFilterCondition]] = None
     limit_tickets: int = Field(default=10, ge=1)

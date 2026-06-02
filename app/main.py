@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Any, List
 
@@ -8,11 +9,13 @@ from app.config import validate_environment
 from app.database import build_select_query, execute_select
 from app.entities.tickets import ENTITY_REGISTRY
 from app.schemas import (
+    CopilotSemanticCountJsonRequest,
     CopilotTicketCountRequest,
     FilterCondition,
     QueryRequest,
     QueryResponse,
     SemanticCountResponse,
+    SemanticFilterCondition,
     SemanticSearchRequest,
     SemanticSearchResponse,
     TicketNotesRequest,
@@ -30,7 +33,6 @@ from app.ticket_notes import (
     build_ticket_notes_sql_preview,
     execute_ticket_notes_search,
 )
-from app.config import validate_environment
 from app.copilot_tickets import build_semantic_count_request_from_copilot
 
 app = FastAPI(title="CW Secure SQL API", version="0.2.0")
@@ -96,6 +98,59 @@ def get_client_ip(http_request: Request) -> str | None:
         return http_request.client.host if http_request.client else None
     except Exception:
         return None
+
+
+def parse_copilot_filters_json(filters_json: str) -> list[SemanticFilterCondition]:
+    """
+    Parses Copilot-provided JSON text into SemanticFilterCondition objects.
+
+    Accepts either:
+    [
+      {"field": "company", "operator": "contains", "value": "Oaklawn"}
+    ]
+
+    or:
+    {
+      "where": [
+        {"field": "company", "operator": "contains", "value": "Oaklawn"}
+      ]
+    }
+    """
+
+    cleaned = filters_json.strip()
+
+    if cleaned.startswith("```"):
+        cleaned = cleaned.strip("`").strip()
+
+        if cleaned.lower().startswith("json"):
+            cleaned = cleaned[4:].strip()
+
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        raise SemanticSearchError(f"Invalid filters_json. Expected valid JSON. {e}")
+
+    if isinstance(parsed, dict):
+        parsed_filters = parsed.get("where") or parsed.get("filters")
+    else:
+        parsed_filters = parsed
+
+    if not isinstance(parsed_filters, list) or not parsed_filters:
+        raise SemanticSearchError(
+            "filters_json must be a non-empty JSON array of filter objects."
+        )
+
+    filters: list[SemanticFilterCondition] = []
+
+    for item in parsed_filters:
+        if not isinstance(item, dict):
+            raise SemanticSearchError(
+                "Each filters_json item must be an object with field, operator, and value."
+            )
+
+        filters.append(SemanticFilterCondition(**item))
+
+    return filters
 
 
 @app.get("/health")
@@ -245,6 +300,7 @@ def semantic_search_preview_api(
             detail="Unexpected server error",
         )
 
+
 @app.post("/api/copilot/tickets/count", response_model=SemanticCountResponse)
 def copilot_ticket_count_api(
     request_body: CopilotTicketCountRequest,
@@ -300,6 +356,71 @@ def copilot_ticket_count_api(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unexpected server error",
         )
+
+
+@app.post("/api/copilot/tickets/count/json", response_model=SemanticCountResponse)
+def copilot_ticket_count_json_api(
+    request_body: CopilotSemanticCountJsonRequest,
+    http_request: Request,
+    _: Any = Depends(verify_token),
+) -> SemanticCountResponse:
+
+    client_ip = get_client_ip(http_request)
+
+    try:
+        filters = parse_copilot_filters_json(request_body.filters_json)
+
+        semantic_request = SemanticSearchRequest(
+            entity=request_body.entity,
+            where=filters,
+        )
+
+        response = execute_semantic_count(semantic_request)
+
+        logger.info(
+            "copilot_ticket_count_json_executed client_ip=%s entity=%s count=%s execution_time_ms=%s filters=%s",
+            client_ip,
+            semantic_request.entity,
+            response.count,
+            response.execution_time_ms,
+            [item.model_dump() for item in filters],
+        )
+
+        return response
+
+    except SemanticSearchError as se:
+        logger.warning(
+            "copilot_ticket_count_json_rejected client_ip=%s reason=%s",
+            client_ip,
+            str(se),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(se),
+        )
+
+    except RuntimeError as re:
+        logger.error(
+            "copilot_ticket_count_json_failed client_ip=%s error=%s",
+            client_ip,
+            str(re),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database query failed",
+        )
+
+    except Exception as e:
+        logger.error(
+            "copilot_ticket_count_json_unexpected_error client_ip=%s error=%s",
+            client_ip,
+            str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unexpected server error",
+        )
+
 
 @app.get("/api/copilot/tickets/count", response_model=SemanticCountResponse)
 def copilot_ticket_count_get_api(
@@ -386,6 +507,7 @@ def copilot_ticket_count_get_api(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unexpected server error",
         )
+
 
 @app.post("/api/search/count/preview")
 def semantic_count_preview_api(
