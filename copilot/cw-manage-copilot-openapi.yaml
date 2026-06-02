@@ -1,8 +1,8 @@
 swagger: "2.0"
 info:
-  title: CW Ticket Tools v6
+  title: CW Ticket Tools v7
   description: Tools for counting, searching, and retrieving notes from ConnectWise Manage tickets.
-  version: "1.0.6"
+  version: "1.0.7"
 
 host: mt-copilot-apim.azure-api.net
 basePath: /cw-v3
@@ -34,13 +34,13 @@ paths:
         Counts ConnectWise Manage tickets using a semantic request body. Use this tool for questions asking
         how many, count, number of, total, or quantity of tickets match conditions. Build the where array only
         from filters stated or strongly implied by the user. Do not ask for filters that are not mentioned.
-        Use entity ticket. For company, customer, account, organization, client, or site names, use field company
-        with operator contains. For text in the ticket summary, use field summary with operator contains.
-        For multiple words or phrases that all need to appear in the ticket summary, use field summary with
-        operator contains_all and an array of strings. For status or lifecycle terms, use field status with
-        operator semantic_eq. For board names, use field board with operator contains. For owner names, use field
-        owner with operator contains. For entered or updated date ranges, use date_entered or last_updated with
-        gte and lte operators.
+        Use entity ticket. For company, customer, account, organization, client, or site names, create a filter
+        with field company, operator contains, and the company name as value. For text in the ticket summary,
+        create a filter with field summary, operator contains, and the summary text as value. For multiple words
+        or phrases that all need to appear in the ticket summary, use field summary with operator contains_all
+        and an array of strings. For status or lifecycle terms, use field status with operator semantic_eq.
+        For board names, use field board with operator contains. For owner names, use field owner with operator
+        contains. For entered or updated date ranges, use date_entered or last_updated with gte and lte operators.
       security:
         - BearerAuth: []
       parameters:
@@ -116,7 +116,8 @@ definitions:
     type: object
     description: >
       A single semantic filter condition for ticket search, ticket count, or ticket note requests.
-      Only create filters for conditions the user stated or strongly implied.
+      Only create filters for conditions the user stated or strongly implied. Each filter object must have
+      field, operator, and value properties.
     required:
       - field
       - operator
@@ -124,59 +125,28 @@ definitions:
     properties:
       field:
         type: string
-        enum:
-          - summary
-          - company
-          - status
-          - board
-          - owner
-          - date_entered
-          - last_updated
-          - is_closed
-          - type
-          - subtype
-          - item
-          - urgency
-          - impact
-          - severity
-          - source
-          - team
         description: >
           Semantic ticket field name. Use company for company, customer, account, organization, client, or site
           names. Use summary for text in the ticket summary. Use status for status or lifecycle terms. Use board
           for board names. Use owner for ticket owner names. Use date_entered for ticket entered dates. Use
-          last_updated for ticket updated dates.
+          last_updated for ticket updated dates. Supported values include company, summary, status, board, owner,
+          date_entered, last_updated, is_closed, type, subtype, item, urgency, impact, severity, source, and team.
         x-ms-summary: Filter field
-        x-ms-visibility: important
       operator:
         type: string
-        enum:
-          - eq
-          - ne
-          - lt
-          - lte
-          - gt
-          - gte
-          - in
-          - contains
-          - contains_all
-          - contains_any
-          - startswith
-          - endswith
-          - semantic_eq
         description: >
           Filter operator. Use contains for simple text matching. Use contains_all when several words or phrases
           should all appear somewhere in the same field. Use contains_any when any one of several words or phrases
           can appear. Use semantic_eq for lifecycle status terms like open, closed, completed, done, active,
-          inactive, scheduled, waiting_client, and waiting_vendor. Use gte and lte for date ranges.
+          inactive, scheduled, waiting_client, and waiting_vendor. Use gte and lte for date ranges. Supported
+          values include eq, ne, lt, lte, gt, gte, in, contains, contains_all, contains_any, startswith, endswith,
+          and semantic_eq.
         x-ms-summary: Filter operator
-        x-ms-visibility: important
       value:
         description: >
           Filter value. For contains_all and contains_any, use an array of strings when possible. For most other
           operators, use a string, number, boolean, or list as appropriate.
         x-ms-summary: Filter value
-        x-ms-visibility: important
 
   SemanticTicketCountRequest:
     type: object
@@ -190,8 +160,6 @@ definitions:
     properties:
       entity:
         type: string
-        enum:
-          - ticket
         default: ticket
         description: The entity being counted. Always use ticket.
         x-ms-summary: Entity
@@ -202,7 +170,7 @@ definitions:
         description: >
           Filters to apply to the ticket count. Include only filters explicitly stated or strongly implied by
           the user. For "How many Oaklawn tickets have SentinelOne in the summary?", use two filters:
-          company contains Oaklawn, and summary contains SentinelOne.
+          field company operator contains value Oaklawn, and field summary operator contains value SentinelOne.
         x-ms-summary: Ticket filters
         x-ms-visibility: important
         items:
@@ -216,21 +184,12 @@ definitions:
     properties:
       field:
         type: string
-        enum:
-          - last_updated
-          - date_entered
-          - company
-          - status
-          - board
-          - owner
-          - summary
-        description: Field to sort by.
+        description: >
+          Field to sort by. Supported values include last_updated, date_entered, company, status, board, owner,
+          and summary.
         x-ms-summary: Sort field
       direction:
         type: string
-        enum:
-          - asc
-          - desc
         default: asc
         description: Sort direction. Use asc or desc.
         x-ms-summary: Sort direction
@@ -245,8 +204,7 @@ definitions:
     properties:
       entity:
         type: string
-        enum:
-          - ticket
+        default: ticket
         description: The entity being searched. Always use ticket.
         x-ms-summary: Entity
         x-ms-visibility: important
@@ -256,24 +214,6 @@ definitions:
         x-ms-summary: Selected fields
         items:
           type: string
-          enum:
-            - id
-            - summary
-            - company
-            - status
-            - board
-            - owner
-            - date_entered
-            - last_updated
-            - is_closed
-            - type
-            - subtype
-            - item
-            - urgency
-            - impact
-            - severity
-            - source
-            - team
           description: Ticket field to return.
           x-ms-summary: Selected field
       where:
