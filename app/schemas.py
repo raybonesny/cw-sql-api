@@ -1,5 +1,10 @@
-from typing import List, Optional, Dict, Any, Literal
-from pydantic import BaseModel, Field
+from typing import Any, Dict, List, Literal, Optional
+
+from pydantic import BaseModel, Field, field_validator
+
+
+def normalize_token(value: Any) -> str:
+    return str(value).strip().lower().replace(" ", "_")
 
 
 class FilterCondition(BaseModel):
@@ -18,10 +23,20 @@ class FilterCondition(BaseModel):
     ]
     value: Any
 
+    @field_validator("operator", mode="before")
+    @classmethod
+    def normalize_operator(cls, value: Any) -> str:
+        return normalize_token(value)
+
 
 class OrderBy(BaseModel):
     field: str
     direction: Literal["asc", "desc"] = "asc"
+
+    @field_validator("direction", mode="before")
+    @classmethod
+    def normalize_direction(cls, value: Any) -> str:
+        return normalize_token(value)
 
 
 class QueryRequest(BaseModel):
@@ -59,10 +74,30 @@ class SemanticFilterCondition(BaseModel):
     ] = "eq"
     value: Any
 
+    @field_validator("field", mode="before")
+    @classmethod
+    def normalize_field(cls, value: Any) -> str:
+        return normalize_token(value)
+
+    @field_validator("operator", mode="before")
+    @classmethod
+    def normalize_operator(cls, value: Any) -> str:
+        return normalize_token(value)
+
 
 class SemanticOrderBy(BaseModel):
     field: str
     direction: Literal["asc", "desc"] = "asc"
+
+    @field_validator("field", mode="before")
+    @classmethod
+    def normalize_field(cls, value: Any) -> str:
+        return normalize_token(value)
+
+    @field_validator("direction", mode="before")
+    @classmethod
+    def normalize_direction(cls, value: Any) -> str:
+        return normalize_token(value)
 
 
 class SemanticSearchRequest(BaseModel):
@@ -72,6 +107,33 @@ class SemanticSearchRequest(BaseModel):
     include: Optional[List[str]] = None
     order_by: Optional[List[SemanticOrderBy]] = None
     limit: Optional[int] = Field(default=None, ge=1)
+
+    @field_validator("entity", mode="before")
+    @classmethod
+    def normalize_entity(cls, value: Any) -> str:
+        return normalize_token(value)
+
+    @field_validator("select", mode="before")
+    @classmethod
+    def normalize_select(cls, value: Any) -> Any:
+        if value is None:
+            return value
+
+        if isinstance(value, list):
+            return [normalize_token(item) for item in value]
+
+        return value
+
+    @field_validator("include", mode="before")
+    @classmethod
+    def normalize_include(cls, value: Any) -> Any:
+        if value is None:
+            return value
+
+        if isinstance(value, list):
+            return [normalize_token(item) for item in value]
+
+        return value
 
 
 class SemanticSearchResponse(BaseModel):
@@ -86,6 +148,7 @@ class SemanticCountResponse(BaseModel):
     entity: str
     count: int
     execution_time_ms: int
+
 
 class CopilotTicketCountRequest(BaseModel):
     company_contains: Optional[str] = None
