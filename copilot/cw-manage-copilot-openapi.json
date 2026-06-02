@@ -1,9 +1,9 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "CW Ticket Count Tools v9",
-    "description": "Tool for counting ConnectWise Manage tickets using JSON text filters.",
-    "version": "1.0.9"
+    "title": "CW Ticket Count Tools v10",
+    "description": "Count ConnectWise Manage tickets using JSON text filters.",
+    "version": "1.0.10"
   },
   "host": "mt-copilot-apim.azure-api.net",
   "basePath": "/cw-v3",
@@ -35,7 +35,7 @@
         "operationId": "CopilotCountTicketsJsonFilters",
         "summary": "Count ConnectWise tickets",
         "x-ms-summary": "Count ConnectWise tickets",
-        "description": "Counts ConnectWise Manage tickets using JSON text filters. Use this tool for questions asking how many, count, number of, total, or quantity of tickets match conditions.\nAlways use entity ticket.\nThe filters_json input must be a valid JSON array string. Do not ask the user for filters that are not mentioned. Only include filters stated or strongly implied by the user.\nFor company, customer, account, organization, client, or site names, add: {\"field\":\"company\",\"operator\":\"contains\",\"value\":\"COMPANY_NAME\"}\nFor text in the ticket summary, add: {\"field\":\"summary\",\"operator\":\"contains\",\"value\":\"SUMMARY_TEXT\"}\nFor status or lifecycle terms, add: {\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"STATUS_TERM\"}\nFor board names, add: {\"field\":\"board\",\"operator\":\"contains\",\"value\":\"BOARD_NAME\"}\nFor owner names, add: {\"field\":\"owner\",\"operator\":\"contains\",\"value\":\"OWNER_NAME\"}\nFor entered date ranges, use field date_entered with operators gte and lte.\nFor updated date ranges, use field last_updated with operators gte and lte.\nExample user question: How many Oaklawn tickets have SentinelOne in the summary?\nExample filters_json value: [{\"field\":\"company\",\"operator\":\"contains\",\"value\":\"Oaklawn\"},{\"field\":\"summary\",\"operator\":\"contains\",\"value\":\"SentinelOne\"}]\n",
+        "description": "Counts ConnectWise Manage tickets. Use entity ticket. Generate filters_json as a JSON array string. Include only filters stated by the user. Use company contains for customer/client names. Use summary contains for text in the ticket summary. Example filters_json: [{\"field\":\"company\",\"operator\":\"contains\",\"value\":\"Oaklawn\"},{\"field\":\"summary\",\"operator\":\"contains\",\"value\":\"SentinelOne\"}]\n",
         "security": [
           {
             "BearerAuth": []
@@ -46,7 +46,7 @@
             "in": "body",
             "name": "body",
             "required": true,
-            "description": "Ticket count request with JSON text filters.",
+            "description": "Ticket count request.",
             "x-ms-summary": "Ticket count request",
             "schema": {
               "$ref": "#/definitions/CopilotSemanticCountJsonRequest"
@@ -67,7 +67,7 @@
   "definitions": {
     "CopilotSemanticCountJsonRequest": {
       "type": "object",
-      "description": "Request body for counting ConnectWise Manage tickets. Use entity ticket and generate filters_json as a valid JSON array string.\n",
+      "description": "Count ticket request with JSON text filters.",
       "required": [
         "entity",
         "filters_json"
@@ -82,7 +82,7 @@
         },
         "filters_json": {
           "type": "string",
-          "description": "A valid JSON array string containing filter objects. Include only filters stated or strongly implied by the user's question. Each filter object must include field, operator, and value. For example: [{\"field\":\"company\",\"operator\":\"contains\",\"value\":\"Oaklawn\"},{\"field\":\"summary\",\"operator\":\"contains\",\"value\":\"SentinelOne\"}]\n",
+          "description": "JSON array string of filter objects. Each object has field, operator, and value. Example: [{\"field\":\"company\",\"operator\":\"contains\",\"value\":\"Oaklawn\"},{\"field\":\"summary\",\"operator\":\"contains\",\"value\":\"SentinelOne\"}]\n",
           "x-ms-summary": "Filters JSON",
           "x-ms-visibility": "important"
         }
