@@ -1,9 +1,9 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "CW Ticket Tools v11",
-    "description": "Count, search, and retrieve ConnectWise Manage ticket notes using JSON text filters.",
-    "version": "1.0.11"
+    "title": "CW Ticket Tools v12",
+    "description": "Count, search, and retrieve ConnectWise Manage ticket notes using JSON text filters. Supports ticket priority filters such as P1, Priority 1, Critical, and Emergency.",
+    "version": "1.0.12"
   },
   "host": "mt-copilot-apim.azure-api.net",
   "basePath": "/cw-v3",
@@ -35,7 +35,7 @@
         "operationId": "CopilotCountTicketsJsonFilters",
         "summary": "Count ConnectWise tickets",
         "x-ms-summary": "Count ConnectWise tickets",
-        "description": "Counts ConnectWise Manage tickets. Use for how many/count/total questions. Use entity ticket. Generate filters_json as a JSON array string. Include only filters stated by the user. Use company contains for customer/client names. Use summary contains for text in the ticket summary.\n",
+        "description": "Counts ConnectWise Manage tickets. Use for how many/count/total questions. Use entity ticket.\n\nGenerate filters_json as a JSON array string. Each filter object must have field, operator, and value.\n\nSupported filter fields:\n- company: use contains for customer/client/company names.\n- summary: use contains only when the user specifically asks for words/text in the ticket summary.\n- status: use semantic_eq open for open tickets. Use semantic_eq closed for closed tickets.\n- priority: use eq for ticket priority. For P1, Priority 1, Critical, Emergency, or urgent tickets, use {\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"}.\n- board: use contains for board names.\n- owner: use contains for ticket owner/member names.\n- date_entered: use gte/lte for created date filters.\n- last_updated: use gte/lte for updated date filters.\n\nImportant:\n- Do not treat P1, Priority 1, Critical, Emergency, or urgent as summary text unless the user explicitly says \"summary contains P1\".\n- For \"open P1 tickets\", use both filters:\n  [{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}]\n\nExamples:\n- How many open P1 tickets are there?\n  filters_json = [{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}]\n- How many SentinelOne tickets are open?\n  filters_json = [{\"field\":\"summary\",\"operator\":\"contains\",\"value\":\"SentinelOne\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}]\n- How many tickets for Oaklawn?\n  filters_json = [{\"field\":\"company\",\"operator\":\"contains\",\"value\":\"Oaklawn\"}]\n",
         "security": [
           {
             "BearerAuth": []
@@ -68,7 +68,7 @@
         "operationId": "CopilotSearchTicketsJsonFilters",
         "summary": "Search ConnectWise tickets",
         "x-ms-summary": "Search ConnectWise tickets",
-        "description": "Searches ConnectWise Manage tickets. Use for find/show/list/retrieve ticket questions. Use entity ticket. Generate filters_json as a JSON array string when filters are needed. Use select_json only when fields are requested or helpful. Use order_by_json only when sorting is requested.\n",
+        "description": "Searches ConnectWise Manage tickets. Use for find/show/list/retrieve ticket questions. Use entity ticket.\n\nGenerate filters_json as a JSON array string. Each filter object must have field, operator, and value.\n\nSupported filter fields:\n- company: use contains for customer/client/company names.\n- summary: use contains only when the user specifically asks for words/text in the ticket summary.\n- status: use semantic_eq open for open tickets. Use semantic_eq closed for closed tickets.\n- priority: use eq for ticket priority. For P1, Priority 1, Critical, Emergency, or urgent tickets, use {\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"}.\n- board: use contains for board names.\n- owner: use contains for ticket owner/member names.\n- date_entered: use gte/lte for created date filters.\n- last_updated: use gte/lte for updated date filters.\n\nImportant:\n- Do not treat P1, Priority 1, Critical, Emergency, or urgent as summary text unless the user explicitly says \"summary contains P1\".\n- For \"open P1 tickets\", use both filters:\n  [{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}]\n\nUse select_json when fields are requested or helpful.\nGood default select_json:\n[\"id\",\"company.name\",\"summary\",\"status.name\",\"urgency.name\",\"date_entered\",\"last_updated\"]\n\nFor \"list open P1 ticket numbers\", use:\nfilters_json = [{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}]\nselect_json = [\"id\",\"company.name\",\"summary\",\"status.name\",\"urgency.name\"]\n",
         "security": [
           {
             "BearerAuth": []
@@ -101,7 +101,7 @@
         "operationId": "CopilotGetTicketNotesJsonFilters",
         "summary": "Get ConnectWise ticket notes",
         "x-ms-summary": "Get ConnectWise ticket notes",
-        "description": "Retrieves notes from matching ConnectWise Manage tickets. Use for summarize/review/read/explain ticket notes. Use entity ticket. Generate filters_json as a JSON array string. Include only filters stated by the user.\n",
+        "description": "Retrieves notes from matching ConnectWise Manage tickets. Use for summarize/review/read/explain ticket notes. Use entity ticket.\n\nGenerate filters_json as a JSON array string. Each filter object must have field, operator, and value.\n\nSupported filter fields:\n- company: use contains for customer/client/company names.\n- summary: use contains only when the user specifically asks for words/text in the ticket summary.\n- status: use semantic_eq open for open tickets. Use semantic_eq closed for closed tickets.\n- priority: use eq for ticket priority. For P1, Priority 1, Critical, Emergency, or urgent tickets, use {\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"}.\n- board: use contains for board names.\n- owner: use contains for ticket owner/member names.\n- date_entered: use gte/lte for created date filters.\n- last_updated: use gte/lte for updated date filters.\n\nImportant:\n- Do not treat P1, Priority 1, Critical, Emergency, or urgent as summary text unless the user explicitly says \"summary contains P1\".\n- For \"open P1 tickets\", use both filters:\n  [{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}]\n",
         "security": [
           {
             "BearerAuth": []
@@ -148,7 +148,7 @@
         },
         "filters_json": {
           "type": "string",
-          "description": "JSON array string of filter objects. Each object has field, operator, and value. Example: [{\"field\":\"company\",\"operator\":\"contains\",\"value\":\"Oaklawn\"},{\"field\":\"summary\",\"operator\":\"contains\",\"value\":\"SentinelOne\"}]\n",
+          "description": "JSON array string of filter objects. Each object has field, operator, and value.\n\nSupported fields: company, summary, status, priority, board, owner, date_entered, last_updated.\n\nPriority examples:\n[{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"}]\n[{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}]\n\nDo not use summary contains P1 unless the user explicitly asks for P1 in the summary.\n",
           "x-ms-summary": "Filters JSON",
           "x-ms-visibility": "important"
         }
@@ -170,13 +170,13 @@
         },
         "filters_json": {
           "type": "string",
-          "description": "Optional JSON array string of filter objects. Omit when the user does not ask for filtering. Example: [{\"field\":\"company\",\"operator\":\"contains\",\"value\":\"Oaklawn\"},{\"field\":\"summary\",\"operator\":\"contains\",\"value\":\"SentinelOne\"}]\n",
+          "description": "Optional JSON array string of filter objects. Omit when the user does not ask for filtering.\n\nSupported fields: company, summary, status, priority, board, owner, date_entered, last_updated.\n\nFor P1/Priority 1/Critical/Emergency tickets, use:\n[{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"}]\n\nFor open P1 tickets, use:\n[{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}]\n\nDo not use summary contains P1 unless the user explicitly asks for P1 in the summary.\n",
           "x-ms-summary": "Filters JSON",
           "x-ms-visibility": "important"
         },
         "select_json": {
           "type": "string",
-          "description": "Optional JSON array string of fields to return. Omit unless needed. Good default: [\"id\",\"company\",\"summary\",\"status\",\"date_entered\",\"last_updated\"]\n",
+          "description": "Optional JSON array string of fields to return. Omit unless needed.\n\nGood default:\n[\"id\",\"company.name\",\"summary\",\"status.name\",\"urgency.name\",\"date_entered\",\"last_updated\"]\n\nFor ticket numbers only, use:\n[\"id\"]\n\nFor listing open P1 tickets, use:\n[\"id\",\"company.name\",\"summary\",\"status.name\",\"urgency.name\"]\n",
           "x-ms-summary": "Select JSON"
         },
         "order_by_json": {
@@ -211,7 +211,7 @@
         },
         "filters_json": {
           "type": "string",
-          "description": "JSON array string of filter objects used to find matching tickets before retrieving notes. Example: [{\"field\":\"company\",\"operator\":\"contains\",\"value\":\"Oaklawn\"},{\"field\":\"summary\",\"operator\":\"contains\",\"value\":\"SentinelOne\"}]\n",
+          "description": "JSON array string of filter objects used to find matching tickets before retrieving notes.\n\nSupported fields: company, summary, status, priority, board, owner, date_entered, last_updated.\n\nFor P1/Priority 1/Critical/Emergency tickets, use:\n[{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"}]\n\nFor open P1 tickets, use:\n[{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}]\n",
           "x-ms-summary": "Filters JSON",
           "x-ms-visibility": "important"
         },
