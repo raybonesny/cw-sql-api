@@ -25,5 +25,18 @@ ALLOWED_EXPANDS = {
                 "Inactive_Flag",
             ],
         },
+        "SR_Urgency": {
+            "table": "SR_Urgency",
+            "base_alias": "s",
+            "join_alias": "urg",
+            "left_key": "SR_Urgency_RecID",
+            "right_key": "SR_Urgency_RecID",
+            "default_columns": [
+                "SR_Urgency_RecID",
+                "Description",
+                "Sort_Order",
+                "Urgency_Level",
+            ],
+        },
     }
 }

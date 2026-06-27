@@ -144,7 +144,7 @@ ACTUAL_STATUS_CANONICAL: Dict[str, str] = {
 }
 
 # These are the GENERIC field names that should trigger semantic status handling.
-# If the filter field is already explicit, like "SR_Status.SR_Status", do NOT remap it.
+# If the filter field is already explicit, like "SR_Status.Description", do NOT remap it.
 SEMANTIC_STATUS_FIELDS: Set[str] = {
     "status",
     "ticket_status",
@@ -154,12 +154,77 @@ SEMANTIC_STATUS_FIELDS: Set[str] = {
 }
 
 
+# These are the GENERIC field names that should trigger semantic priority/urgency handling.
+# ConnectWise Manage tickets store this as SR_Service.SR_Urgency_RecID and join to SR_Urgency.
+SEMANTIC_PRIORITY_FIELDS: Set[str] = {
+    "priority",
+    "ticket_priority",
+    "service_priority",
+    "urgency",
+    "ticket_urgency",
+    "service_urgency",
+    "impact",
+}
+
+
+# Your current SR_Urgency values:
+#   2  = Priority 1 - Emergency 4 Hour Resolution = Critical
+#   1  = Priority 2 - Quick 1 Day Resolution      = High
+#   4  = Priority 3 - Normal 2 Day Resolution     = Medium
+#   13 = Priority 4 - 5 Business Day Resolution   = Low
+#   3  = Priority 5 - Extended 1 Month Resolution
+#   10 = Some Time
+#   6  = Next Visit
+#
+# We resolve these to SR_Urgency.SR_Urgency_RecID instead of Description so the
+# query is exact and resilient to description wording.
+PRIORITY_CANONICAL: Dict[str, int] = {
+    "p1": 2,
+    "p 1": 2,
+    "priority 1": 2,
+    "priority one": 2,
+    "critical": 2,
+    "emergency": 2,
+    "urgent": 2,
+
+    "p2": 1,
+    "p 2": 1,
+    "priority 2": 1,
+    "priority two": 1,
+    "high": 1,
+    "quick": 1,
+
+    "p3": 4,
+    "p 3": 4,
+    "priority 3": 4,
+    "priority three": 4,
+    "medium": 4,
+    "normal": 4,
+
+    "p4": 13,
+    "p 4": 13,
+    "priority 4": 13,
+    "priority four": 13,
+    "low": 13,
+
+    "p5": 3,
+    "p 5": 3,
+    "priority 5": 3,
+    "priority five": 3,
+    "extended": 3,
+
+    "some time": 10,
+    "sometime": 10,
+
+    "next visit": 6,
+}
+
 
 def resolve_status_filter(value: str) -> dict:
     raw_value = str(value).strip()
     normalized = raw_value.lower()
 
-    # ✅ Case 1: exact real status
+    # Case 1: exact real status
     if normalized in ACTUAL_STATUS_CANONICAL:
         return {
             "field": "SR_Status.Description",
@@ -167,7 +232,7 @@ def resolve_status_filter(value: str) -> dict:
             "value": ACTUAL_STATUS_CANONICAL[normalized],
         }
 
-    # ✅ Case 2: semantic group
+    # Case 2: semantic group
     if normalized in STATUS_MAP:
         return {
             "field": "SR_Status.Description",
@@ -175,9 +240,27 @@ def resolve_status_filter(value: str) -> dict:
             "value": STATUS_MAP[normalized],
         }
 
-    # ✅ Case 3: fallback
+    # Case 3: fallback
     return {
         "field": "SR_Status.Description",
+        "operator": "contains",
+        "value": raw_value,
+    }
+
+
+def resolve_priority_filter(value: str) -> dict:
+    raw_value = str(value).strip()
+    normalized = raw_value.lower()
+
+    if normalized in PRIORITY_CANONICAL:
+        return {
+            "field": "SR_Urgency.SR_Urgency_RecID",
+            "operator": "eq",
+            "value": PRIORITY_CANONICAL[normalized],
+        }
+
+    return {
+        "field": "SR_Urgency.Description",
         "operator": "contains",
         "value": raw_value,
     }

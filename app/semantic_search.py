@@ -12,6 +12,7 @@ from app.schemas import (
     SemanticSearchRequest,
     SemanticSearchResponse,
 )
+from app.semantic_maps import PRIORITY_CANONICAL
 
 
 class SemanticSearchError(ValueError):
@@ -35,6 +36,11 @@ FIELD_ALIASES = {
     "subtype": "subtype.name",
     "item": "item.name",
     "urgency": "urgency.name",
+    "priority": "urgency.id",
+    "ticket_priority": "urgency.id",
+    "service_priority": "urgency.id",
+    "ticket_urgency": "urgency.id",
+    "service_urgency": "urgency.id",
     "impact": "impact.name",
     "severity": "severity.name",
     "source": "source.name",
@@ -278,6 +284,13 @@ def _build_condition_clause(
     expression = field.sql_expression
     operator = _normalize_operator(operator)
 
+    if field.output_name == "urgency_id":
+        return _build_urgency_clause(
+            operator=operator,
+            value=value,
+            param_name=param_name,
+        )
+
     if operator == "eq":
         return f"{expression} = :{param_name}", {param_name: value}
 
@@ -370,6 +383,85 @@ def _build_multi_contains_clause(
         params[term_param_name] = f"%{term}%"
 
     return "(" + f" {joiner} ".join(clauses) + ")", params
+
+
+def _resolve_urgency_value(value: Any) -> int | None:
+    raw_value = str(value).strip()
+
+    if not raw_value:
+        return None
+
+    if raw_value.isdigit():
+        return int(raw_value)
+
+    return PRIORITY_CANONICAL.get(raw_value.lower())
+
+
+def _build_urgency_clause(
+    operator: str,
+    value: Any,
+    param_name: str,
+) -> Tuple[str, Dict[str, Any]]:
+    resolved_value = _resolve_urgency_value(value)
+
+    if operator in {"eq", "semantic_eq", "contains"}:
+        if resolved_value is not None:
+            return "urgency.SR_Urgency_RecID = :" + param_name, {
+                param_name: resolved_value,
+            }
+
+        return (
+            "("
+            "LOWER(urgency.Description) LIKE :" + param_name + "_description "
+            "OR LOWER(ISNULL(urgency.Urgency_Level, '')) LIKE :" + param_name + "_level"
+            ")",
+            {
+                f"{param_name}_description": f"%{str(value).strip().lower()}%",
+                f"{param_name}_level": f"%{str(value).strip().lower()}%",
+            },
+        )
+
+    if operator == "ne":
+        if resolved_value is not None:
+            return "urgency.SR_Urgency_RecID <> :" + param_name, {
+                param_name: resolved_value,
+            }
+
+        return (
+            "("
+            "LOWER(urgency.Description) NOT LIKE :" + param_name + "_description "
+            "AND LOWER(ISNULL(urgency.Urgency_Level, '')) NOT LIKE :" + param_name + "_level"
+            ")",
+            {
+                f"{param_name}_description": f"%{str(value).strip().lower()}%",
+                f"{param_name}_level": f"%{str(value).strip().lower()}%",
+            },
+        )
+
+    if operator == "in":
+        if not isinstance(value, list) or not value:
+            raise SemanticSearchError("Operator 'in' requires a non-empty list value.")
+
+        params: Dict[str, Any] = {}
+        placeholders: List[str] = []
+
+        for item_index, item in enumerate(value):
+            resolved_item = _resolve_urgency_value(item)
+
+            if resolved_item is None:
+                raise SemanticSearchError(
+                    f"Unsupported priority value '{item}' for operator 'in'."
+                )
+
+            item_param_name = f"{param_name}_{item_index}"
+            placeholders.append(f":{item_param_name}")
+            params[item_param_name] = resolved_item
+
+        return f"urgency.SR_Urgency_RecID IN ({', '.join(placeholders)})", params
+
+    raise SemanticSearchError(
+        f"Unsupported operator '{operator}' for priority/urgency filters."
+    )
 
 
 def _build_semantic_eq_clause(
