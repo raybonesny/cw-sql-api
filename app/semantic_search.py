@@ -566,19 +566,19 @@ def _build_status_open_clause() -> Tuple[str, Dict[str, Any]]:
     )
 
 
-def _build_status_closed_or_completed_clause(
-    param_name: str,
-) -> Tuple[str, Dict[str, Any]]:
-    completed_param = f"{param_name}_completed"
-
+def _build_status_open_clause() -> Tuple[str, Dict[str, Any]]:
     return (
         "("
-        "ISNULL(status.Closed_Flag, 0) = 1 "
-        f"OR LOWER(status.Description) LIKE :{completed_param}"
+        "ISNULL(ticket.IsClosed_Flag, 0) = 0 "
+        "AND ISNULL(status.Inactive_Flag, 0) = 0 "
+        "AND LOWER(ISNULL(status.Description, '')) NOT LIKE '%cancel%' "
+        "AND LOWER(ISNULL(status.Description, '')) NOT LIKE '%closed%' "
+        "AND LOWER(ISNULL(status.Description, '')) NOT LIKE '%complete%' "
+        "AND LOWER(ISNULL(status.Description, '')) NOT LIKE '%resolved%' "
+        "AND LOWER(ISNULL(status.Description, '')) NOT LIKE '%accepted risk%' "
+        "AND LOWER(ISNULL(status.Description, '')) NOT LIKE '%pending closure%'"
         ")",
-        {
-            completed_param: "%complete%",
-        },
+        {},
     )
 
 
