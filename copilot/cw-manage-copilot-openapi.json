@@ -1,4 +1,3 @@
-{
   "swagger": "2.0",
   "info": {
     "title": "CW Ticket Tools v19",
@@ -127,6 +126,41 @@
             "schema": {
               "type": "object",
               "description": "Ticket notes result.",
+              "additionalProperties": true
+            }
+          }
+        }
+      }
+    },
+    "/api/copilot/tickets/sla/search/json": {
+      "post": {
+        "operationId": "CopilotSearchTicketSlaJsonFiltersV19",
+        "summary": "Search ConnectWise ticket SLA data",
+        "x-ms-summary": "Search ticket SLA data",
+        "description": "Searches ConnectWise Manage ticket SLA data using JSON text filters. Use this for SLA, response due, resolution due, resplan due, breached SLA, open SLA, team bucket, territory, market, company type, or ticket SLA timing questions. Generate filters_json as a JSON array string. Useful fields include team_bucket, company.type, company.market, territory, territory_manager, board, status, priority, urgency, is_closed, sla.name, sla.status, sla.response_due_at, sla.resplan_due_at, sla.resolution_due_at, sla.next_due_at, sla.minutes_to_response, sla.minutes_to_resplan, sla.minutes_to_resolution, sla.response_state, sla.resplan_state, and sla.resolution_state. For open tickets nearing resolution SLA, filter is_closed eq false, sla.resolution_state eq Open, sla.minutes_to_resolution gt 0, and sla.minutes_to_resolution lte the desired minute threshold.",
+        "security": [
+          {
+            "api_key": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "description": "Ticket SLA search request.",
+            "x-ms-summary": "Ticket SLA search request",
+            "schema": {
+              "$ref": "#/definitions/CopilotSearchRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching ticket SLA rows.",
+            "schema": {
+              "type": "object",
+              "description": "Ticket SLA search result.",
               "additionalProperties": true
             }
           }
