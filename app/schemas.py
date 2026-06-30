@@ -101,7 +101,7 @@ class SemanticOrderBy(BaseModel):
 
 
 class SemanticSearchRequest(BaseModel):
-    entity: Literal["ticket"]
+    entity: Literal["ticket", "ticket_sla"]
     select: Optional[List[str]] = None
     where: Optional[List[SemanticFilterCondition]] = None
     include: Optional[List[str]] = None
@@ -179,6 +179,19 @@ class CopilotSemanticSearchJsonRequest(BaseModel):
     select_json: Optional[str] = None
     order_by_json: Optional[str] = None
     limit: Optional[int] = Field(default=10, ge=1)
+
+    @field_validator("entity", mode="before")
+    @classmethod
+    def normalize_entity(cls, value: Any) -> str:
+        return normalize_token(value)
+
+
+class CopilotSlaSearchJsonRequest(BaseModel):
+    entity: Literal["ticket_sla"] = "ticket_sla"
+    filters_json: Optional[str] = None
+    select_json: Optional[str] = None
+    order_by_json: Optional[str] = None
+    limit: Optional[int] = Field(default=100, ge=1)
 
     @field_validator("entity", mode="before")
     @classmethod

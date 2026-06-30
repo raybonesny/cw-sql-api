@@ -1,9 +1,9 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "CW Ticket Tools v12",
-    "description": "Count, search, and retrieve ConnectWise Manage ticket notes using JSON text filters. Supports ticket priority filters such as P1, Priority 1, Critical, and Emergency.",
-    "version": "1.0.12"
+    "title": "CW Ticket Tools v19",
+    "description": "Count, search, and retrieve ConnectWise Manage tickets using JSON text filters. Supports priority filters such as P1, Priority 1, Critical, and Emergency.",
+    "version": "1.0.19"
   },
   "host": "mt-copilot-apim.azure-api.net",
   "basePath": "/cw-v3",
@@ -17,28 +17,28 @@
     "application/json"
   ],
   "securityDefinitions": {
-    "BearerAuth": {
+    "api_key": {
       "type": "apiKey",
       "name": "Authorization",
       "in": "header",
-      "description": "Enter the API token as \"Bearer YOUR_TOKEN\"."
+      "description": "Enter the full authorization header value, including Bearer."
     }
   },
   "security": [
     {
-      "BearerAuth": []
+      "api_key": []
     }
   ],
   "paths": {
     "/api/copilot/tickets/count/json": {
       "post": {
-        "operationId": "CopilotCountTicketsJsonFilters",
+        "operationId": "CopilotCountTicketsJsonFiltersV19",
         "summary": "Count ConnectWise tickets",
         "x-ms-summary": "Count ConnectWise tickets",
-        "description": "Counts ConnectWise Manage tickets. Use for how many/count/total questions. Use entity ticket.\n\nGenerate filters_json as a JSON array string. Each filter object must have field, operator, and value.\n\nSupported filter fields:\n- company: use contains for customer/client/company names.\n- summary: use contains only when the user specifically asks for words/text in the ticket summary.\n- status: use semantic_eq open for open tickets. Use semantic_eq closed for closed tickets.\n- priority: use eq for ticket priority. For P1, Priority 1, Critical, Emergency, or urgent tickets, use {\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"}.\n- board: use contains for board names.\n- owner: use contains for ticket owner/member names.\n- date_entered: use gte/lte for created date filters.\n- last_updated: use gte/lte for updated date filters.\n\nImportant:\n- Do not treat P1, Priority 1, Critical, Emergency, or urgent as summary text unless the user explicitly says \"summary contains P1\".\n- For \"open P1 tickets\", use both filters:\n  [{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}]\n\nExamples:\n- How many open P1 tickets are there?\n  filters_json = [{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}]\n- How many SentinelOne tickets are open?\n  filters_json = [{\"field\":\"summary\",\"operator\":\"contains\",\"value\":\"SentinelOne\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}]\n- How many tickets for Oaklawn?\n  filters_json = [{\"field\":\"company\",\"operator\":\"contains\",\"value\":\"Oaklawn\"}]\n",
+        "description": "Counts ConnectWise Manage tickets. Use this for how many, count, or total ticket questions. Always use entity ticket. Generate filters_json as a JSON array string. Use company contains for customer names. Use summary contains only when the user specifically asks for text in the ticket summary. Use status semantic_eq open for open tickets. Use priority eq P1 for P1, Priority 1, Critical, Emergency, or urgent tickets. Do not treat P1 as summary text unless the user explicitly says summary contains P1. For open P1 tickets use filters_json: [{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}].",
         "security": [
           {
-            "BearerAuth": []
+            "api_key": []
           }
         ],
         "parameters": [
@@ -65,13 +65,13 @@
     },
     "/api/copilot/tickets/search/json": {
       "post": {
-        "operationId": "CopilotSearchTicketsJsonFilters",
+        "operationId": "CopilotSearchTicketsJsonFiltersV19",
         "summary": "Search ConnectWise tickets",
         "x-ms-summary": "Search ConnectWise tickets",
-        "description": "Searches ConnectWise Manage tickets. Use for find/show/list/retrieve ticket questions. Use entity ticket.\n\nGenerate filters_json as a JSON array string. Each filter object must have field, operator, and value.\n\nSupported filter fields:\n- company: use contains for customer/client/company names.\n- summary: use contains only when the user specifically asks for words/text in the ticket summary.\n- status: use semantic_eq open for open tickets. Use semantic_eq closed for closed tickets.\n- priority: use eq for ticket priority. For P1, Priority 1, Critical, Emergency, or urgent tickets, use {\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"}.\n- board: use contains for board names.\n- owner: use contains for ticket owner/member names.\n- date_entered: use gte/lte for created date filters.\n- last_updated: use gte/lte for updated date filters.\n\nImportant:\n- Do not treat P1, Priority 1, Critical, Emergency, or urgent as summary text unless the user explicitly says \"summary contains P1\".\n- For \"open P1 tickets\", use both filters:\n  [{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}]\n\nUse select_json when fields are requested or helpful.\nGood default select_json:\n[\"id\",\"company.name\",\"summary\",\"status.name\",\"urgency.name\",\"date_entered\",\"last_updated\"]\n\nFor \"list open P1 ticket numbers\", use:\nfilters_json = [{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}]\nselect_json = [\"id\",\"company.name\",\"summary\",\"status.name\",\"urgency.name\"]\n",
+        "description": "Searches ConnectWise Manage tickets. Use this for find, show, list, retrieve, ticket details, ticket number questions, or specific ticket ID lookups. Always use entity ticket. Never call this tool with only entity. Always provide filters_json. For follow-up questions, reuse all filters from the previous ticket count or search unless the user explicitly changes them. If the user asks about a specific ticket number, use filters_json with field id, operator eq, and the ticket number. Generate filters_json as a JSON array string when filters are needed. Use company contains for customer names. Use summary contains only when the user specifically asks for text in the ticket summary. Use status semantic_eq open for open tickets. Use priority eq P1 for P1, Priority 1, Critical, Emergency, or urgent tickets. Do not treat P1 as summary text unless the user explicitly says summary contains P1. For open P1 tickets use filters_json: [{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}]. For listing open P1 ticket numbers use select_json: [\"id\",\"company.name\",\"summary\",\"status.name\",\"urgency.name\",\"last_updated\"]. When the user asks for all matching tickets, the full list, the complete list, or says yes to continue, set limit to 100 instead of calling the same request repeatedly. Never infer or rewrite company_name, status_name, summary, or ticket ID from conversation context; only report the values returned by the tool.",
         "security": [
           {
-            "BearerAuth": []
+            "api_key": []
           }
         ],
         "parameters": [
@@ -90,7 +90,9 @@
           "200": {
             "description": "Matching ticket rows.",
             "schema": {
-              "$ref": "#/definitions/SemanticSearchResponse"
+              "type": "object",
+              "description": "Ticket search result.",
+              "additionalProperties": true
             }
           }
         }
@@ -98,13 +100,13 @@
     },
     "/api/copilot/tickets/notes/json": {
       "post": {
-        "operationId": "CopilotGetTicketNotesJsonFilters",
+        "operationId": "CopilotGetTicketNotesJsonFiltersV19",
         "summary": "Get ConnectWise ticket notes",
         "x-ms-summary": "Get ConnectWise ticket notes",
-        "description": "Retrieves notes from matching ConnectWise Manage tickets. Use for summarize/review/read/explain ticket notes. Use entity ticket.\n\nGenerate filters_json as a JSON array string. Each filter object must have field, operator, and value.\n\nSupported filter fields:\n- company: use contains for customer/client/company names.\n- summary: use contains only when the user specifically asks for words/text in the ticket summary.\n- status: use semantic_eq open for open tickets. Use semantic_eq closed for closed tickets.\n- priority: use eq for ticket priority. For P1, Priority 1, Critical, Emergency, or urgent tickets, use {\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"}.\n- board: use contains for board names.\n- owner: use contains for ticket owner/member names.\n- date_entered: use gte/lte for created date filters.\n- last_updated: use gte/lte for updated date filters.\n\nImportant:\n- Do not treat P1, Priority 1, Critical, Emergency, or urgent as summary text unless the user explicitly says \"summary contains P1\".\n- For \"open P1 tickets\", use both filters:\n  [{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}]\n",
+        "description": "Retrieves notes from matching ConnectWise Manage tickets. Use this for summarize, review, read, or explain ticket notes. Always use entity ticket. Generate filters_json as a JSON array string. Use company contains for customer names. Use summary contains only when the user specifically asks for text in the ticket summary. Use status semantic_eq open for open tickets. Use priority eq P1 for P1, Priority 1, Critical, Emergency, or urgent tickets. Do not treat P1 as summary text unless the user explicitly says summary contains P1.",
         "security": [
           {
-            "BearerAuth": []
+            "api_key": []
           }
         ],
         "parameters": [
@@ -123,7 +125,9 @@
           "200": {
             "description": "Matching ticket notes.",
             "schema": {
-              "$ref": "#/definitions/TicketNotesResponse"
+              "type": "object",
+              "description": "Ticket notes result.",
+              "additionalProperties": true
             }
           }
         }
@@ -133,7 +137,7 @@
   "definitions": {
     "CopilotCountRequest": {
       "type": "object",
-      "description": "Count ticket request with JSON text filters.",
+      "description": "Ticket count request.",
       "required": [
         "entity",
         "filters_json"
@@ -148,7 +152,7 @@
         },
         "filters_json": {
           "type": "string",
-          "description": "JSON array string of filter objects. Each object has field, operator, and value.\n\nSupported fields: company, summary, status, priority, board, owner, date_entered, last_updated.\n\nPriority examples:\n[{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"}]\n[{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}]\n\nDo not use summary contains P1 unless the user explicitly asks for P1 in the summary.\n",
+          "description": "JSON array string of ticket filters.",
           "x-ms-summary": "Filters JSON",
           "x-ms-visibility": "important"
         }
@@ -156,47 +160,7 @@
     },
     "CopilotSearchRequest": {
       "type": "object",
-      "description": "Search ticket request with optional JSON text filters, fields, and sorting.",
-      "required": [
-        "entity"
-      ],
-      "properties": {
-        "entity": {
-          "type": "string",
-          "default": "ticket",
-          "description": "Always use ticket.",
-          "x-ms-summary": "Entity",
-          "x-ms-visibility": "important"
-        },
-        "filters_json": {
-          "type": "string",
-          "description": "Optional JSON array string of filter objects. Omit when the user does not ask for filtering.\n\nSupported fields: company, summary, status, priority, board, owner, date_entered, last_updated.\n\nFor P1/Priority 1/Critical/Emergency tickets, use:\n[{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"}]\n\nFor open P1 tickets, use:\n[{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}]\n\nDo not use summary contains P1 unless the user explicitly asks for P1 in the summary.\n",
-          "x-ms-summary": "Filters JSON",
-          "x-ms-visibility": "important"
-        },
-        "select_json": {
-          "type": "string",
-          "description": "Optional JSON array string of fields to return. Omit unless needed.\n\nGood default:\n[\"id\",\"company.name\",\"summary\",\"status.name\",\"urgency.name\",\"date_entered\",\"last_updated\"]\n\nFor ticket numbers only, use:\n[\"id\"]\n\nFor listing open P1 tickets, use:\n[\"id\",\"company.name\",\"summary\",\"status.name\",\"urgency.name\"]\n",
-          "x-ms-summary": "Select JSON"
-        },
-        "order_by_json": {
-          "type": "string",
-          "description": "Optional JSON array string of sort objects. Omit unless sorting is requested. Example: [{\"field\":\"last_updated\",\"direction\":\"desc\"}]\n",
-          "x-ms-summary": "Order by JSON"
-        },
-        "limit": {
-          "type": "integer",
-          "format": "int32",
-          "default": 10,
-          "minimum": 1,
-          "description": "Maximum number of ticket rows to return. Use 10 unless the user asks for another amount.",
-          "x-ms-summary": "Row limit"
-        }
-      }
-    },
-    "CopilotNotesRequest": {
-      "type": "object",
-      "description": "Ticket notes request with JSON text filters.",
+      "description": "Ticket search request. This tool requires filters_json so it cannot be used for unsafe unfiltered searches.",
       "required": [
         "entity",
         "filters_json"
@@ -211,7 +175,49 @@
         },
         "filters_json": {
           "type": "string",
-          "description": "JSON array string of filter objects used to find matching tickets before retrieving notes.\n\nSupported fields: company, summary, status, priority, board, owner, date_entered, last_updated.\n\nFor P1/Priority 1/Critical/Emergency tickets, use:\n[{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"}]\n\nFor open P1 tickets, use:\n[{\"field\":\"priority\",\"operator\":\"eq\",\"value\":\"P1\"},{\"field\":\"status\",\"operator\":\"semantic_eq\",\"value\":\"open\"}]\n",
+          "description": "Required JSON array string of ticket filters. Do not leave blank.",
+          "x-ms-summary": "Filters JSON",
+          "x-ms-visibility": "important"
+        },
+        "select_json": {
+          "type": "string",
+          "description": "Optional JSON array string of fields to return.",
+          "x-ms-summary": "Select JSON"
+        },
+        "order_by_json": {
+          "type": "string",
+          "description": "Optional JSON array string of sort fields.",
+          "x-ms-summary": "Order by JSON"
+        },
+        "limit": {
+          "type": "integer",
+          "format": "int32",
+          "default": 100,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Maximum number of rows to return. Use 100 when the user asks for all tickets, a full list, or a complete list.",
+          "x-ms-summary": "Row limit"
+        }
+      }
+    },
+    "CopilotNotesRequest": {
+      "type": "object",
+      "description": "Ticket notes request.",
+      "required": [
+        "entity",
+        "filters_json"
+      ],
+      "properties": {
+        "entity": {
+          "type": "string",
+          "default": "ticket",
+          "description": "Always use ticket.",
+          "x-ms-summary": "Entity",
+          "x-ms-visibility": "important"
+        },
+        "filters_json": {
+          "type": "string",
+          "description": "JSON array string of ticket filters.",
           "x-ms-summary": "Filters JSON",
           "x-ms-visibility": "important"
         },
@@ -220,7 +226,7 @@
           "format": "int32",
           "default": 5,
           "minimum": 1,
-          "description": "Maximum number of matching tickets to collect notes from. Use 5 unless the user asks for more.",
+          "description": "Maximum matching tickets.",
           "x-ms-summary": "Ticket limit"
         },
         "limit_notes": {
@@ -228,13 +234,13 @@
           "format": "int32",
           "default": 25,
           "minimum": 1,
-          "description": "Maximum number of notes to return. Use 25 unless the user asks for more.",
+          "description": "Maximum notes to return.",
           "x-ms-summary": "Note limit"
         },
         "include_internal": {
           "type": "boolean",
           "default": true,
-          "description": "Whether to include internal notes. Use true unless the user asks for public/customer notes only.",
+          "description": "Include internal notes.",
           "x-ms-summary": "Include internal notes"
         }
       }
@@ -257,81 +263,8 @@
         "execution_time_ms": {
           "type": "integer",
           "format": "int32",
-          "description": "Query execution time in milliseconds.",
-          "x-ms-summary": "Execution time milliseconds"
-        }
-      }
-    },
-    "SemanticSearchResponse": {
-      "type": "object",
-      "description": "Ticket search response.",
-      "properties": {
-        "entity": {
-          "type": "string",
-          "description": "Entity searched.",
-          "x-ms-summary": "Entity"
-        },
-        "columns": {
-          "type": "array",
-          "description": "Returned column names.",
-          "x-ms-summary": "Columns",
-          "items": {
-            "type": "string"
-          }
-        },
-        "rows": {
-          "type": "array",
-          "description": "Matching ticket rows.",
-          "x-ms-summary": "Rows",
-          "items": {
-            "type": "object"
-          }
-        },
-        "row_count": {
-          "type": "integer",
-          "format": "int32",
-          "description": "Number of rows returned.",
-          "x-ms-summary": "Row count"
-        },
-        "execution_time_ms": {
-          "type": "integer",
-          "format": "int32",
-          "description": "Query execution time in milliseconds.",
-          "x-ms-summary": "Execution time milliseconds"
-        }
-      }
-    },
-    "TicketNotesResponse": {
-      "type": "object",
-      "description": "Ticket notes response.",
-      "properties": {
-        "columns": {
-          "type": "array",
-          "description": "Returned column names.",
-          "x-ms-summary": "Columns",
-          "items": {
-            "type": "string"
-          }
-        },
-        "rows": {
-          "type": "array",
-          "description": "Matching ticket note rows.",
-          "x-ms-summary": "Rows",
-          "items": {
-            "type": "object"
-          }
-        },
-        "row_count": {
-          "type": "integer",
-          "format": "int32",
-          "description": "Number of note rows returned.",
-          "x-ms-summary": "Row count"
-        },
-        "execution_time_ms": {
-          "type": "integer",
-          "format": "int32",
-          "description": "Query execution time in milliseconds.",
-          "x-ms-summary": "Execution time milliseconds"
+          "description": "Query execution time.",
+          "x-ms-summary": "Execution time"
         }
       }
     }

@@ -45,6 +45,26 @@ FIELD_ALIASES = {
     "severity": "severity.name",
     "source": "source.name",
     "team": "team.name",
+    "company_type": "company.type",
+    "company_market": "company.market",
+    "market": "company.market",
+    "territory": "territory",
+    "territory_manager": "territory_manager",
+    "team_bucket": "team_bucket",
+    "is_closed": "is_closed",
+    "sla": "sla.name",
+    "sla_name": "sla.name",
+    "sla_status": "sla.status",
+    "response_due_at": "sla.response_due_at",
+    "resplan_due_at": "sla.resplan_due_at",
+    "resolution_due_at": "sla.resolution_due_at",
+    "next_due_at": "sla.next_due_at",
+    "minutes_to_response": "sla.minutes_to_response",
+    "minutes_to_resplan": "sla.minutes_to_resplan",
+    "minutes_to_resolution": "sla.minutes_to_resolution",
+    "response_state": "sla.response_state",
+    "resplan_state": "sla.resplan_state",
+    "resolution_state": "sla.resolution_state",
 }
 
 
@@ -243,6 +263,13 @@ def _build_order_by(
 def _build_joins(entity: EntityMapping, include_names: Set[str]) -> str:
     joins: List[str] = []
 
+    # The ticket_sla entity uses a reporting-view join where the company include
+    # already joins v_rpt_Service as ticket before joining v_rpt_Company. Avoid
+    # adding the ticket include a second time when company is also requested.
+    if entity.name == "ticket_sla" and "company" in include_names:
+        include_names = set(include_names)
+        include_names.discard("ticket")
+
     for include_name in sorted(include_names):
         include = entity.includes.get(include_name)
         if include is None:
@@ -255,9 +282,12 @@ def _build_joins(entity: EntityMapping, include_names: Set[str]) -> str:
 
 
 def _get_field(entity: EntityMapping, field_name: str) -> FieldMapping:
-    normalized_field_name = _normalize_field_name(field_name)
+    normalized_field_name = str(field_name).strip().lower().replace(" ", "_")
 
     field = entity.fields.get(normalized_field_name)
+    if field is None:
+        normalized_field_name = FIELD_ALIASES.get(normalized_field_name, normalized_field_name)
+        field = entity.fields.get(normalized_field_name)
     if field is None:
         raise SemanticSearchError(
             f"Unsupported field '{field_name}' for entity '{entity.name}'."

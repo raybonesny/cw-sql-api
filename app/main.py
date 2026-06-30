@@ -12,6 +12,7 @@ from app.entities.tickets import ENTITY_REGISTRY
 from app.schemas import (
     CopilotSemanticCountJsonRequest,
     CopilotSemanticSearchJsonRequest,
+    CopilotSlaSearchJsonRequest,
     CopilotTicketCountRequest,
     CopilotTicketNotesJsonRequest,
     FilterCondition,
@@ -581,6 +582,78 @@ def copilot_ticket_search_json_api(
     except Exception as e:
         logger.error(
             "copilot_ticket_search_json_unexpected_error client_ip=%s error=%s",
+            client_ip,
+            str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unexpected server error",
+        )
+
+
+@app.post("/api/copilot/tickets/sla/search/json", response_model=SemanticSearchResponse)
+def copilot_ticket_sla_search_json_api(
+    request_body: CopilotSlaSearchJsonRequest,
+    http_request: Request,
+    _: Any = Depends(verify_token),
+) -> SemanticSearchResponse:
+
+    client_ip = get_client_ip(http_request)
+
+    try:
+        filters = parse_optional_copilot_filters_json(request_body.filters_json)
+        select = parse_copilot_select_json(request_body.select_json)
+        order_by = parse_copilot_order_by_json(request_body.order_by_json)
+
+        semantic_request = SemanticSearchRequest(
+            entity=request_body.entity,
+            select=select,
+            where=filters,
+            order_by=order_by,
+            limit=request_body.limit,
+        )
+
+        response = execute_semantic_search(semantic_request)
+
+        logger.info(
+            "copilot_ticket_sla_search_json_executed client_ip=%s entity=%s row_count=%s execution_time_ms=%s filters=%s select=%s order_by=%s limit=%s",
+            client_ip,
+            semantic_request.entity,
+            response.row_count,
+            response.execution_time_ms,
+            [item.model_dump() for item in filters] if filters else None,
+            select,
+            [item.model_dump() for item in order_by] if order_by else None,
+            request_body.limit,
+        )
+
+        return response
+
+    except SemanticSearchError as se:
+        logger.warning(
+            "copilot_ticket_sla_search_json_rejected client_ip=%s reason=%s",
+            client_ip,
+            str(se),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(se),
+        )
+
+    except RuntimeError as re:
+        logger.error(
+            "copilot_ticket_sla_search_json_failed client_ip=%s error=%s",
+            client_ip,
+            str(re),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database query failed",
+        )
+
+    except Exception as e:
+        logger.error(
+            "copilot_ticket_sla_search_json_unexpected_error client_ip=%s error=%s",
             client_ip,
             str(e),
         )
